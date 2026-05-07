@@ -274,6 +274,23 @@
       font-weight: 600;
     }
 
+    /* 수동 마킹 커서 */
+    .manual-mode #overlayCanvas { cursor: crosshair !important; pointer-events: auto !important; }
+    .mark-badge {
+      position: absolute; background: var(--red); color: #fff;
+      font-size: 10px; font-weight: 700; border-radius: 50%;
+      width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+      transform: translate(-50%, -50%); pointer-events: none;
+      border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+    }
+    /* 수동 마킹 안내 배너 */
+    .manual-banner {
+      background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4);
+      color: #fca5a5; padding: 7px 12px; font-size: 12px; border-radius: 7px;
+      display: none;
+    }
+    .manual-banner.show { display: block; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -446,7 +463,26 @@
 
     <hr class="divider">
 
-    <button class="btn btn-primary" id="analyzeBtn">🔍 분석 시작</button>
+    <hr class="divider">
+
+    <div class="section">
+      <div class="section-title">🖱️ 수동 마킹 모드</div>
+      <div class="info-box">
+        자동 감지가 어려울 때: 이미지에서 점 위치를 <strong style="color:#fca5a5">직접 클릭</strong>하면 자동으로 그리드 좌표가 계산됩니다.
+      </div>
+      <div class="toggle-row">
+        <span style="font-size:12px; color:var(--muted)">수동 클릭 마킹</span>
+        <div class="toggle" id="manualMarkToggle"></div>
+      </div>
+      <div class="manual-banner" id="manualBanner">
+        ✋ 마킹 모드 활성 — 이미지에서 점 위치를 클릭하세요
+      </div>
+      <button class="btn btn-secondary btn-sm" id="clearMarksBtn" style="margin-top:4px">🗑️ 마킹 초기화</button>
+    </div>
+
+    <hr class="divider">
+
+    <button class="btn btn-primary" id="analyzeBtn">🔍 자동 분석</button>
     <button class="btn btn-secondary" id="resetBtn">↺ 초기화</button>
   </div>
 
@@ -628,6 +664,9 @@ let state = {
   showSub: true,
   showDots: true,
   showHeat: false,
+  // 수동 마킹
+  manualMode: false,
+  manualMarks: [],      // [{cx,cy,pi,si,digit}] 캔버스 좌표 기준
 };
 
 const mainCanvas = document.getElementById('mainCanvas');
@@ -831,6 +870,75 @@ function calcConfidence(densities, digits) {
   return Math.round((totalConf / densities.length) * 100);
 }
 
+// ── 수동 마킹: 클릭 좌표 → 기본/세부분할 계산 ────
+function addManualMark(canvasX, canvasY) {
+  if (!state.region) return;
+
+  const pRows = parseInt(document.getElementById('primaryRows').value);
+  const pCols = parseInt(document.getElementById('primaryCols').value);
+  const sRows = parseInt(document.getElementById('subRows').value);
+  const sCols = parseInt(document.getElementById('subCols').value);
+
+  const { x: rx, y: ry, w: rw, h: rh } = state.region;
+  const pW = rw / pCols, pH = rh / pRows;
+  const sW = pW / sCols, sH = pH / sRows;
+
+  // 영역 밖이면 무시
+  if (canvasX < rx || canvasX > rx+rw || canvasY < ry || canvasY > ry+rh) {
+    return;
+  }
+
+  const relX = canvasX - rx, relY = canvasY - ry;
+  const pc = Math.min(Math.floor(relX / pW), pCols - 1);
+  const pr = Math.min(Math.floor(relY / pH), pRows - 1);
+  const pi = pr * pCols + pc;
+
+  const subRelX = relX - pc * pW;
+  const subRelY = relY - pr * pH;
+  const sc = Math.min(Math.floor(subRelX / sW), sCols - 1);
+  const sr = Math.min(Math.floor(subRelY / sH), sRows - 1);
+  const si = sr * sCols + sc;
+
+  // 같은 기본분할에 이미 마킹이 있으면 교체
+  const existing = state.manualMarks.findIndex(m => m.pi === pi);
+  const mark = { cx: canvasX, cy: canvasY, pi, si, digit: si };
+  if (existing >= 0) state.manualMarks[existing] = mark;
+  else state.manualMarks.push(mark);
+
+  // digits 배열 업데이트
+  if (!state.digits) state.digits = Array(pRows * pCols).fill(-1);
+  state.digits[pi] = si;
+
+  updateResultDisplay();
+  drawOverlay();
+}
+
+// ── 수동 마킹 초기화 ─────────────────────────────
+function clearManualMarks() {
+  state.manualMarks = [];
+  const pRows = parseInt(document.getElementById('primaryRows').value);
+  const pCols = parseInt(document.getElementById('primaryCols').value);
+  state.digits = Array(pRows * pCols).fill(-1);
+  updateResultDisplay();
+  drawOverlay();
+}
+
+// ── 결과 디스플레이 업데이트 ─────────────────────
+function updateResultDisplay() {
+  if (!state.digits) return;
+  const code = state.digits.map(d => d >= 0 ? d : '?').join('');
+  document.getElementById('resultCode').textContent = code;
+
+  const codeDisplay = document.getElementById('codeDisplay');
+  codeDisplay.innerHTML = '';
+  state.digits.forEach((d, i) => {
+    const box = document.createElement('div');
+    box.className = 'digit-box' + (d >= 0 ? ' detected' : '');
+    box.innerHTML = `<div class="d-num">${d >= 0 ? d : '?'}</div><div class="d-idx">P${i}</div>`;
+    codeDisplay.appendChild(box);
+  });
+}
+
 // ── 오버레이 그리기 ──────────────────────────────
 function drawOverlay() {
   if (!state.image || !state.region) return;
@@ -973,6 +1081,41 @@ function drawOverlay() {
       octx.beginPath(); octx.arc(x, y, 4, 0, Math.PI*2); octx.stroke();
     }
   }
+
+  // ── 수동 마킹 표시 ────────────────────────────
+  for (const mark of state.manualMarks) {
+    const mx = mark.cx, my = mark.cy;
+
+    // 바깥 원
+    octx.strokeStyle = '#f97316';
+    octx.lineWidth = 2;
+    octx.beginPath(); octx.arc(mx, my, 10, 0, Math.PI*2); octx.stroke();
+
+    // 안쪽 점
+    octx.fillStyle = '#f97316';
+    octx.beginPath(); octx.arc(mx, my, 3, 0, Math.PI*2); octx.fill();
+
+    // 번호 레이블 (P번호:자릿수)
+    const labelX = mx + 13, labelY = my - 8;
+    octx.fillStyle = 'rgba(0,0,0,0.7)';
+    octx.fillRect(labelX - 2, labelY - 11, 46, 15);
+    octx.fillStyle = '#f97316';
+    octx.font = 'bold 10px monospace';
+    octx.fillText(`P${mark.pi}→${mark.digit}`, labelX, labelY);
+  }
+
+  // 수동 마킹 모드 안내 테두리
+  if (state.manualMode) {
+    octx.strokeStyle = 'rgba(239,68,68,0.5)';
+    octx.lineWidth = 3;
+    octx.setLineDash([8, 4]);
+    octx.strokeRect(2, 2, overlayCanvas.width - 4, overlayCanvas.height - 4);
+    octx.setLineDash([]);
+
+    octx.fillStyle = 'rgba(239,68,68,0.8)';
+    octx.font = 'bold 13px sans-serif';
+    octx.fillText('✋ 클릭 마킹 모드', 10, 20);
+  }
 }
 
 // ── 이미지 로드 및 표시 ──────────────────────────
@@ -1070,18 +1213,7 @@ function analyze() {
   state.densities = densities;
 
   // 결과 표시
-  const code = digits.map(d => d >= 0 ? d : '?').join('');
-  document.getElementById('resultCode').textContent = code;
-
-  // 자릿수 박스
-  const codeDisplay = document.getElementById('codeDisplay');
-  codeDisplay.innerHTML = '';
-  digits.forEach((d, i) => {
-    const box = document.createElement('div');
-    box.className = 'digit-box' + (d >= 0 ? ' detected' : '');
-    box.innerHTML = `<div class="d-num">${d >= 0 ? d : '?'}</div><div class="d-idx">P${i}</div>`;
-    codeDisplay.appendChild(box);
-  });
+  updateResultDisplay();
 
   const conf = calcConfidence(densities, digits);
   document.getElementById('statZones').textContent = `${pRows*pCols}`;
@@ -1302,6 +1434,41 @@ makeToggle('showSubToggle', 'showSub', drawOverlay);
 makeToggle('showDotsToggle', 'showDots', drawOverlay);
 makeToggle('showHeatToggle', 'showHeat', drawOverlay);
 makeToggle('showTextToggle', null, null);
+
+// 수동 마킹 토글
+makeToggle('manualMarkToggle', 'manualMode', () => {
+  const banner = document.getElementById('manualBanner');
+  const wrap = document.getElementById('canvasWrap');
+  if (state.manualMode) {
+    banner.classList.add('show');
+    overlayCanvas.style.pointerEvents = 'auto';
+    overlayCanvas.style.cursor = 'crosshair';
+    wrap.classList.add('manual-mode');
+  } else {
+    banner.classList.remove('show');
+    overlayCanvas.style.pointerEvents = 'none';
+    overlayCanvas.style.cursor = 'default';
+    wrap.classList.remove('manual-mode');
+  }
+  drawOverlay();
+});
+
+// 수동 마킹 초기화
+document.getElementById('clearMarksBtn').addEventListener('click', clearManualMarks);
+
+// ── 캔버스 클릭 → 수동 마킹 ──────────────────────
+overlayCanvas.addEventListener('click', (e) => {
+  if (!state.manualMode || !state.image) return;
+
+  const rect = overlayCanvas.getBoundingClientRect();
+  // 캔버스 실제 크기 vs 표시 크기 비율 보정
+  const scaleX = overlayCanvas.width / rect.width;
+  const scaleY = overlayCanvas.height / rect.height;
+  const cx = (e.clientX - rect.left) * scaleX;
+  const cy = (e.clientY - rect.top) * scaleY;
+
+  addManualMark(cx, cy);
+});
 
 // 슬라이더 연동
 function bindSlider(sliderId, valueId, suffix = '') {
