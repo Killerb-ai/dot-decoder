@@ -91,6 +91,7 @@
     }
     .canvas-area {
       flex: 1;
+      min-height: 150px;
       position: relative;
       overflow: auto;
       background: #080b14;
@@ -98,10 +99,95 @@
     }
     .result-bar {
       height: 90px;
+      flex-shrink: 0;
       background: var(--surface);
       border-top: 1px solid var(--border);
       padding: 12px 20px;
       display: flex; align-items: center; gap: 20px;
+    }
+
+    /* Subzone grid panel */
+    .subzone-panel {
+      flex-shrink: 0;
+      border-top: 2px solid var(--accent);
+      background: var(--surface2);
+      overflow: auto;
+      max-height: 340px;
+    }
+    .subzone-panel-header {
+      position: sticky;
+      top: 0;
+      background: var(--surface2);
+      z-index: 10;
+      padding: 8px 16px 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .subzone-panel-title {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--accent); font-weight: 700;
+    }
+    .subzone-panel-hint {
+      font-size: 10px; color: var(--muted);
+    }
+    #subzoneGrid {
+      padding: 8px 16px 12px;
+      overflow-x: auto;
+    }
+    .subzone-row {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+    .subzone-row-label {
+      width: 34px;
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: 700;
+      text-align: right;
+      padding-right: 5px;
+      flex-shrink: 0;
+    }
+    .subzone-cell {
+      position: relative;
+      overflow: hidden;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: transform .1s, box-shadow .1s;
+      flex-shrink: 0;
+      border: 2px solid var(--border);
+    }
+    .subzone-cell:hover { transform: scale(1.08); z-index: 5; }
+    .subzone-cell.detected {
+      border-color: var(--green);
+      box-shadow: 0 0 8px rgba(34,197,94,0.6);
+    }
+    .subzone-cell.high-score { border-color: var(--yellow); }
+    .subzone-score-label {
+      position: absolute; bottom: 1px; right: 2px;
+      font-size: 8px; font-weight: 700;
+      background: rgba(0,0,0,0.7);
+      padding: 1px 3px; border-radius: 2px;
+    }
+    .subzone-si-label {
+      position: absolute; top: 1px; left: 2px;
+      font-size: 8px;
+      color: rgba(255,255,255,0.55);
+    }
+    .subzone-header-row {
+      display: flex;
+      gap: 3px;
+      margin-bottom: 2px;
+      padding-left: 38px;
+    }
+    .subzone-col-label {
+      font-size: 9px;
+      color: var(--muted);
+      text-align: center;
+      flex-shrink: 0;
     }
 
     /* Cards / sections in left panel */
@@ -159,9 +245,7 @@
       font-size: 13px; font-weight: 600; cursor: pointer;
       transition: all .15s; width: 100%;
     }
-    .btn-primary {
-      background: var(--accent); color: #fff;
-    }
+    .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover { background: #4a6ef5; }
     .btn-primary:active { transform: scale(.97); }
     .btn-secondary {
@@ -174,9 +258,7 @@
     .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
 
     /* Result display */
-    .code-display {
-      display: flex; gap: 4px; align-items: center;
-    }
+    .code-display { display: flex; gap: 4px; align-items: center; }
     .digit-box {
       width: 44px; height: 60px;
       background: var(--surface2);
@@ -194,9 +276,7 @@
       font-size: 22px; font-weight: 700; color: var(--accent);
       font-variant-numeric: tabular-nums;
     }
-    .digit-box .d-idx {
-      font-size: 9px; color: var(--muted);
-    }
+    .digit-box .d-idx { font-size: 9px; color: var(--muted); }
     .result-label { font-size: 12px; color: var(--muted); }
     .result-full {
       font-size: 24px; font-weight: 700;
@@ -215,7 +295,7 @@
     /* Canvas overlays */
     #mainCanvas {
       display: block;
-      max-width: 100%; max-height: calc(100vh - 250px);
+      max-width: 100%; max-height: calc(100vh - 260px);
       image-rendering: pixelated;
     }
     .canvas-wrap { position: relative; display: inline-block; }
@@ -246,10 +326,7 @@
     #encoderTab { display: none; }
     #decoderTab { display: flex; }
 
-    /* Page content panel for encoder tab */
-    .encoder-wrap {
-      display: flex; height: 100%; overflow: hidden;
-    }
+    .encoder-wrap { display: flex; height: 100%; overflow: hidden; }
     .encoder-left {
       width: 300px; background: var(--surface);
       border-right: 1px solid var(--border);
@@ -263,10 +340,7 @@
     #encoderCanvas { background: #fff; display: block; }
 
     /* Density heatmap indicator */
-    .density-grid {
-      display: grid;
-      gap: 2px;
-    }
+    .density-grid { display: grid; gap: 2px; }
     .density-cell {
       border-radius: 3px;
       display: flex; align-items: center; justify-content: center;
@@ -283,7 +357,6 @@
       transform: translate(-50%, -50%); pointer-events: none;
       border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5);
     }
-    /* 수동 마킹 안내 배너 */
     .manual-banner {
       background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4);
       color: #fca5a5; padding: 7px 12px; font-size: 12px; border-radius: 7px;
@@ -303,8 +376,7 @@
 
     /* Alert */
     .alert {
-      padding: 8px 12px; border-radius: 7px; font-size: 12px;
-      line-height: 1.5;
+      padding: 8px 12px; border-radius: 7px; font-size: 12px; line-height: 1.5;
     }
     .alert-info { background: rgba(91,124,250,.1); border: 1px solid rgba(91,124,250,.3); color: #a5b4fc; }
     .alert-warn { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); color: #fcd34d; }
@@ -315,6 +387,13 @@
     /* Region adjust UI */
     .region-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .region-field label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+
+    /* Progress indicator */
+    #analyzeProgress {
+      display: none;
+      font-size: 11px; color: var(--muted);
+      padding: 4px 0;
+    }
   </style>
 </head>
 <body>
@@ -326,7 +405,7 @@
     <div class="header-title">점은닉 디코더</div>
     <div class="header-sub">문건 식별정보 삽입 기술 (KR 10-1989170) 기반 분석기</div>
   </div>
-  <div class="header-badge">v1.0 · 단독 실행</div>
+  <div class="header-badge">v2.0 · 배경감산 알고리즘</div>
 </div>
 
 <!-- Tabs -->
@@ -417,25 +496,29 @@
     <hr class="divider">
 
     <div class="section">
-      <div class="section-title">감지 설정</div>
+      <div class="section-title">감지 설정 (배경감산)</div>
       <div class="param-group">
         <div class="param-row">
-          <span class="param-label">이진화 임계값</span>
-          <span class="param-value" id="threshVal">128</span>
+          <span class="param-label">배경 블러 반경 (px)</span>
+          <span class="param-value" id="blurRadiusVal">20</span>
         </div>
-        <input type="range" id="threshSlider" min="50" max="240" value="128">
+        <input type="range" id="blurRadiusSlider" min="5" max="60" value="20">
 
         <div class="param-row">
-          <span class="param-label">최소 점 크기 (px²)</span>
-          <span class="param-value" id="minSizeVal">3</span>
+          <span class="param-label">윈도우 크기 (px)</span>
+          <span class="param-value" id="winSizeVal">7</span>
         </div>
-        <input type="range" id="minSizeSlider" min="1" max="50" value="3">
+        <input type="range" id="winSizeSlider" min="3" max="30" value="7">
 
         <div class="param-row">
-          <span class="param-label">최대 점 크기 (px²)</span>
-          <span class="param-value" id="maxSizeVal">200</span>
+          <span class="param-label">최소 이상값 임계</span>
+          <span class="param-value" id="anomalyThreshVal">5</span>
         </div>
-        <input type="range" id="maxSizeSlider" min="10" max="2000" value="200">
+        <input type="range" id="anomalyThreshSlider" min="1" max="50" value="5">
+      </div>
+      <div class="info-box" style="font-size:10px; margin-top:4px">
+        💡 블러 반경: 점보다 훨씬 크게 설정 (권장 15~30)<br>
+        💡 윈도우: 점 크기보다 약간 크게 (권장 5~15)
       </div>
     </div>
 
@@ -456,19 +539,17 @@
         <div class="toggle on" id="showDotsToggle"></div>
       </div>
       <div class="toggle-row">
-        <span style="font-size:12px; color:var(--muted)">밀도 히트맵</span>
+        <span style="font-size:12px; color:var(--muted)">이상도 히트맵</span>
         <div class="toggle" id="showHeatToggle"></div>
       </div>
     </div>
 
     <hr class="divider">
 
-    <hr class="divider">
-
     <div class="section">
       <div class="section-title">🖱️ 수동 마킹 모드</div>
       <div class="info-box">
-        자동 감지가 어려울 때: 이미지에서 점 위치를 <strong style="color:#fca5a5">직접 클릭</strong>하면 자동으로 그리드 좌표가 계산됩니다.
+        자동 감지가 어려울 때: 이미지에서 점 위치를 <strong style="color:#fca5a5">직접 클릭</strong>하면 자동으로 그리드 좌표가 계산됩니다. 또는 하단 세부분할 그리드에서 셀을 클릭하세요.
       </div>
       <div class="toggle-row">
         <span style="font-size:12px; color:var(--muted)">수동 클릭 마킹</span>
@@ -482,7 +563,8 @@
 
     <hr class="divider">
 
-    <button class="btn btn-primary" id="analyzeBtn">🔍 자동 분석</button>
+    <div id="analyzeProgress">⏳ 분석 중...</div>
+    <button class="btn btn-primary" id="analyzeBtn">🔍 분석 시작</button>
     <button class="btn btn-secondary" id="resetBtn">↺ 초기화</button>
   </div>
 
@@ -507,12 +589,12 @@
         <div class="stat-label">감지 영역</div>
       </div>
       <div class="stat">
-        <div class="stat-val" id="statDots">—</div>
-        <div class="stat-label">감지 점 수</div>
-      </div>
-      <div class="stat">
         <div class="stat-val" id="statConf">—</div>
         <div class="stat-label">신뢰도</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="statAlgo">—</div>
+        <div class="stat-label">알고리즘</div>
       </div>
 
       <div style="flex:1"></div>
@@ -525,6 +607,19 @@
       <div class="code-display" id="codeDisplay">
         <!-- digit boxes injected by JS -->
       </div>
+    </div>
+
+    <!-- ── 세부분할영역 확대 그리드 ── -->
+    <div class="subzone-panel" id="subzonePanel" style="display:none">
+      <div class="subzone-panel-header">
+        <span class="subzone-panel-title">🔬 세부분할영역 확대 분석</span>
+        <span class="subzone-panel-hint">각 셀을 클릭하면 해당 위치를 정답으로 지정</span>
+        <span style="margin-left:auto; font-size:10px; color:var(--muted)">
+          <span style="color:var(--green)">■</span> 감지됨
+          <span style="color:var(--yellow); margin-left:6px">■</span> 차점수
+        </span>
+      </div>
+      <div id="subzoneGrid"></div>
     </div>
   </div>
 </div>
@@ -603,7 +698,16 @@
 <div id="helpTab" class="main" style="display:none; padding:24px; overflow-y:auto; flex-direction:column; gap:16px;">
   <div style="max-width:700px; margin:0 auto; width:100%">
     <h2 style="font-size:20px; margin-bottom:4px">📖 사용 가이드</h2>
-    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 사용법</p>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 v2.0 사용법</p>
+
+    <div class="info-box" style="margin-bottom:12px; font-size:12px">
+      <strong style="color:var(--text)">🆕 v2.0 배경감산 알고리즘</strong><br><br>
+      기존 밀도 비교 방식 대신 <strong style="color:#a5b4fc">배경 추정 → 이상값 감지</strong> 방식으로 개선:<br><br>
+      1. 박스 블러로 <strong>배경 밝기</strong>를 추정합니다 (텍스트보다 훨씬 큰 블러 반경)<br>
+      2. <strong>이상도 = 배경 - 원본</strong> → 배경보다 어두운 점(은닉 도트)만 부각<br>
+      3. 각 세부분할영역에서 <strong>슬라이딩 윈도우</strong>로 최대 이상도 집중점 탐색<br>
+      4. 8개 기본분할 각각에서 이상도 최고 서브존 = 해당 자릿수
+    </div>
 
     <div class="info-box" style="margin-bottom:12px; font-size:12px">
       <strong style="color:var(--text)">📌 특허 기술 원리</strong><br><br>
@@ -617,25 +721,18 @@
     <div class="info-box" style="margin-bottom:12px; font-size:12px">
       <strong style="color:var(--text)">🔓 디코더 사용법</strong><br><br>
       1. <strong>디코더 탭</strong>에서 스캔 이미지를 업로드합니다<br>
-      2. 영역 자동 감지가 적용됩니다 (필요시 수동 조정)<br>
-      3. 임계값/점 크기 파라미터를 조정합니다<br>
-      4. <strong>분석 시작</strong> 버튼을 클릭합니다<br>
-      5. 하단에 8자리 문건 식별코드가 표시됩니다
+      2. <strong>분석 시작</strong> 버튼을 클릭합니다<br>
+      3. 하단 <strong>세부분할영역 확대 그리드</strong>에서 각 P0~P7의 실제 점 위치를 확인합니다<br>
+      4. 잘못 감지된 경우 해당 셀을 클릭하여 수동으로 지정합니다<br>
+      5. 또는 이미지를 직접 클릭하는 수동 마킹 모드를 사용합니다
     </div>
 
     <div class="info-box" style="margin-bottom:12px; font-size:12px">
-      <strong style="color:var(--text)">🔒 인코더 사용법 (테스트)</strong><br><br>
-      1. <strong>인코더 탭</strong>에서 8자리 숫자를 입력합니다 (각 자릿수 0~7)<br>
-      2. <strong>이미지 생성</strong>을 클릭하면 해당 위치에 점이 삽입된 이미지가 만들어집니다<br>
-      3. <strong>PNG 다운로드</strong>로 저장 후 인쇄 → 스캔 → 디코더로 검증 가능
-    </div>
-
-    <div class="info-box" style="font-size:12px">
-      <strong style="color:var(--text)">⚠️ 스캔 이미지 주의사항</strong><br><br>
-      • 300 DPI 이상의 고해상도 스캔 권장<br>
-      • 이미지가 기울어진 경우 자동 감지 정확도 저하<br>
-      • 임계값을 조정하여 감도를 최적화하세요<br>
-      • 텍스트가 매우 조밀한 경우 점 크기 필터(최소/최대)를 좁혀보세요
+      <strong style="color:var(--text)">⚙️ 파라미터 조정 팁</strong><br><br>
+      • <strong>블러 반경</strong>: 점 크기보다 2~5배 크게 설정 (기본 20, 실제 인쇄물 15~30 권장)<br>
+      • <strong>윈도우 크기</strong>: 점 크기와 비슷하게 설정 (5~15 권장)<br>
+      • <strong>최소 이상값 임계</strong>: 배경 노이즈 제거 수준 (1~10 권장)<br>
+      • 300 DPI 이상의 고해상도 스캔 권장
     </div>
   </div>
 </div>
@@ -643,30 +740,25 @@
 
 <script>
 // ============================================================
-//  CORE ALGORITHM (특허 KR 10-1989170 기반)
+//  CORE ALGORITHM v2.0 — 배경감산 + 슬라이딩 윈도우
+//  특허 KR 10-1989170 기반
 // ============================================================
-
-// 특허 구조:
-//  - 기본분할영역: 2행 × 4열 = 8개 (인덱스 0~7, 행우선)
-//  - 세부분할영역: 각 기본에서 4열 × 2행 = 8개 (인덱스 0~7, 행우선)
-//  - 식별코드 k번째 자릿수 D → 기본분할영역 k의 세부분할영역 D번에 점
 
 // ── 상태 ──────────────────────────────────────────
 let state = {
-  image: null,          // HTMLImageElement
-  imageData: null,      // ImageData
-  region: null,         // {x,y,w,h} 코드삽입영역
-  digits: null,         // 감지된 8자리 배열
-  densities: null,      // 모든 세부분할 밀도
-  blobs: null,          // 감지된 점 블롭 목록
+  image: null,
+  imageData: null,
+  region: null,
+  digits: null,
+  scores: null,       // [pCount][subCount] 이상도 점수
+  anomalyData: null,  // Float32Array (이상도 이미지)
   autoDetect: true,
   showPrimary: true,
   showSub: true,
   showDots: true,
   showHeat: false,
-  // 수동 마킹
   manualMode: false,
-  manualMarks: [],      // [{cx,cy,pi,si,digit}] 캔버스 좌표 기준
+  manualMarks: [],
 };
 
 const mainCanvas = document.getElementById('mainCanvas');
@@ -674,68 +766,158 @@ const overlayCanvas = document.getElementById('overlayCanvas');
 const ctx = mainCanvas.getContext('2d');
 const octx = overlayCanvas.getContext('2d');
 
-// ── 이진화 ──────────────────────────────────────────
-function toGrayBinary(imageData, threshold) {
+// ============================================================
+//  알고리즘: 배경감산 + 슬라이딩 윈도우
+// ============================================================
+
+// ── 회색조 Float32Array 변환 ──────────────────────
+function toGrayFloat(imageData) {
   const data = imageData.data;
-  const w = imageData.width, h = imageData.height;
-  const bin = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
-    const gray = 0.299*r + 0.587*g + 0.114*b;
-    bin[i] = gray < threshold ? 1 : 0;
+  const n = imageData.width * imageData.height;
+  const gray = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
   }
-  return bin;
+  return gray;
 }
 
-// ── 연결성분(BFS) ─────────────────────────────────
-function findBlobs(bin, w, h, minSize, maxSize) {
-  const visited = new Uint8Array(w * h);
-  const blobs = [];
+// ── 박스 블러 (분리 가능 패스) ────────────────────
+function boxBlur(gray, w, h, radius) {
+  const temp = new Float32Array(w * h);
+  const result = new Float32Array(w * h);
 
-  for (let startY = 0; startY < h; startY++) {
-    for (let startX = 0; startX < w; startX++) {
-      const startIdx = startY * w + startX;
-      if (!bin[startIdx] || visited[startIdx]) continue;
-
-      // BFS
-      const queue = [startIdx];
-      const pixels = [];
-      visited[startIdx] = 1;
-
-      let qi = 0;
-      while (qi < queue.length) {
-        const idx = queue[qi++];
-        pixels.push(idx);
-        const y = Math.floor(idx / w);
-        const x = idx % w;
-
-        const neighbors = [
-          (y-1)*w+x, (y+1)*w+x, y*w+(x-1), y*w+(x+1)
-        ];
-        for (const n of neighbors) {
-          if (n >= 0 && n < w*h && bin[n] && !visited[n]) {
-            visited[n] = 1;
-            queue.push(n);
-          }
-        }
-      }
-
-      if (pixels.length >= minSize && pixels.length <= maxSize) {
-        let sumX = 0, sumY = 0;
-        for (const p of pixels) {
-          sumX += p % w;
-          sumY += Math.floor(p / w);
-        }
-        blobs.push({
-          cx: sumX / pixels.length,
-          cy: sumY / pixels.length,
-          size: pixels.length,
-          pixels
-        });
-      }
+  // 가로 패스
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    const span = radius * 2 + 1;
+    // 초기값
+    for (let x = -radius; x <= radius; x++) {
+      sum += gray[y * w + Math.max(0, Math.min(w-1, x))];
+    }
+    temp[y * w] = sum / span;
+    for (let x = 1; x < w; x++) {
+      sum -= gray[y * w + Math.max(0, x - radius - 1)];
+      sum += gray[y * w + Math.min(w-1, x + radius)];
+      temp[y * w + x] = sum / span;
     }
   }
-  return blobs;
+
+  // 세로 패스
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    const span = radius * 2 + 1;
+    for (let y = -radius; y <= radius; y++) {
+      sum += temp[Math.max(0, Math.min(h-1, y)) * w + x];
+    }
+    result[x] = sum / span;
+    for (let y = 1; y < h; y++) {
+      sum -= temp[Math.max(0, y - radius - 1) * w + x];
+      sum += temp[Math.min(h-1, y + radius) * w + x];
+      result[y * w + x] = sum / span;
+    }
+  }
+
+  return result;
+}
+
+// ── 슬라이딩 윈도우 최대 이상도 점수 ─────────────
+// 서브존 (x0,y0)~(x1,y1) 내에서 winSize×winSize 윈도우의 최대 합계 반환
+function maxWindowScore(anomaly, w, x0, y0, x1, y1, winSize, minAnomaly) {
+  const half = Math.floor(winSize / 2);
+  let maxScore = 0;
+
+  for (let cy = y0; cy < y1; cy++) {
+    for (let cx = x0; cx < x1; cx++) {
+      let sum = 0, cnt = 0;
+      for (let dy = -half; dy <= half; dy++) {
+        for (let dx = -half; dx <= half; dx++) {
+          const px = Math.max(x0, Math.min(x1-1, cx+dx));
+          const py = Math.max(y0, Math.min(y1-1, cy+dy));
+          const v = anomaly[py * w + px];
+          if (v >= minAnomaly) { sum += v; cnt++; }
+        }
+      }
+      if (sum > maxScore) maxScore = sum;
+    }
+  }
+  return maxScore;
+}
+
+// ── 메인 분석 함수 ────────────────────────────────
+function analyzeSubzones(imageData, region, pRows, pCols, sRows, sCols, blurRadius, winSize, anomalyThresh) {
+  const w = imageData.width;
+  const h = imageData.height;
+  const { x: rx, y: ry, w: rw, h: rh } = region;
+
+  // 회색조 변환
+  const gray = toGrayFloat(imageData);
+
+  // 배경 추정 (큰 블러)
+  const blurred = boxBlur(gray, w, h, blurRadius);
+
+  // 이상도 = max(0, 배경 - 원본)  → 점(어두운)은 양수
+  const anomaly = new Float32Array(w * h);
+  for (let i = 0; i < anomaly.length; i++) {
+    anomaly[i] = Math.max(0, blurred[i] - gray[i]);
+  }
+
+  const pW = rw / pCols, pH = rh / pRows;
+  const sW = pW / sCols, sH = pH / sRows;
+  const totalSubs = sRows * sCols;
+
+  const allScores = [];
+  const digits = [];
+
+  for (let pr = 0; pr < pRows; pr++) {
+    for (let pc = 0; pc < pCols; pc++) {
+      const scores = [];
+
+      for (let sr = 0; sr < sRows; sr++) {
+        for (let sc = 0; sc < sCols; sc++) {
+          const x0 = Math.floor(rx + pc*pW + sc*sW);
+          const y0 = Math.floor(ry + pr*pH + sr*sH);
+          const x1 = Math.ceil(rx + pc*pW + (sc+1)*sW);
+          const y1 = Math.ceil(ry + pr*pH + (sr+1)*sH);
+
+          const score = maxWindowScore(anomaly, w, x0, y0, x1, y1, winSize, anomalyThresh);
+          scores.push(score);
+        }
+      }
+
+      allScores.push(scores);
+
+      // 최고 이상도 세부분할 = 해당 자릿수
+      let maxS = -1, maxI = 0;
+      for (let i = 0; i < scores.length; i++) {
+        if (scores[i] > maxS) { maxS = scores[i]; maxI = i; }
+      }
+      digits.push(maxI);
+    }
+  }
+
+  return { digits, scores: allScores, anomaly };
+}
+
+// ── 신뢰도 계산 ──────────────────────────────────
+function calcConfidence(scores, digits) {
+  if (!scores || !digits) return 0;
+  let totalConf = 0;
+  let validCount = 0;
+  for (let pi = 0; pi < scores.length; pi++) {
+    const s = scores[pi];
+    const chosen = digits[pi];
+    if (chosen < 0 || !s || s.length === 0) continue;
+    const sorted = [...s].sort((a,b) => b-a);
+    if (sorted[0] <= 0) continue;
+    // 1위와 2위의 비율
+    const ratio = sorted.length > 1 && sorted[1] > 0
+      ? sorted[0] / sorted[1]
+      : (sorted[0] > 0 ? 10 : 0);
+    totalConf += Math.min(ratio / 4, 1);
+    validCount++;
+  }
+  if (validCount === 0) return 0;
+  return Math.round((totalConf / validCount) * 100);
 }
 
 // ── 전체영역 자동 감지 ───────────────────────────
@@ -765,109 +947,9 @@ function autoDetectRegion(imageData, margin = 10) {
   return {
     x: Math.max(0, minX - pad),
     y: Math.max(0, minY - pad),
-    w: Math.min(w, maxX - minX + 2*pad),
-    h: Math.min(h, maxY - minY + 2*pad)
+    w: Math.min(w - Math.max(0, minX - pad), maxX - minX + 2*pad),
+    h: Math.min(h - Math.max(0, minY - pad), maxY - minY + 2*pad)
   };
-}
-
-// ── 밀도 기반 디코딩 ─────────────────────────────
-function analyzeDensity(bin, w, region, pRows, pCols, sRows, sCols) {
-  const { x: rx, y: ry, w: rw, h: rh } = region;
-  const pW = rw / pCols, pH = rh / pRows;
-  const sW = pW / sCols, sH = pH / sRows;
-  const totalSubs = sRows * sCols;
-
-  const allDensities = [];  // [pRows*pCols][sRows*sCols]
-  const digits = [];
-
-  for (let pr = 0; pr < pRows; pr++) {
-    for (let pc = 0; pc < pCols; pc++) {
-      const densities = [];
-
-      for (let sr = 0; sr < sRows; sr++) {
-        for (let sc = 0; sc < sCols; sc++) {
-          const x0 = Math.floor(rx + pc*pW + sc*sW);
-          const y0 = Math.floor(ry + pr*pH + sr*sH);
-          const x1 = Math.floor(rx + pc*pW + (sc+1)*sW);
-          const y1 = Math.floor(ry + pr*pH + (sr+1)*sH);
-
-          let dark = 0, total = 0;
-          for (let y = y0; y < y1; y++) {
-            for (let x = x0; x < x1; x++) {
-              if (x >= 0 && x < w && y >= 0 && y < bin.length/w) {
-                total++;
-                if (bin[y*w+x]) dark++;
-              }
-            }
-          }
-          densities.push(total > 0 ? dark/total : 0);
-        }
-      }
-
-      allDensities.push(densities);
-
-      // 가장 밀도 높은 세부분할 = 해당 자릿수
-      let maxD = -1, maxI = 0;
-      for (let i = 0; i < densities.length; i++) {
-        if (densities[i] > maxD) { maxD = densities[i]; maxI = i; }
-      }
-      digits.push(maxI);
-    }
-  }
-
-  return { digits, densities: allDensities };
-}
-
-// ── 블롭 기반 디코딩 ─────────────────────────────
-function decodeFromBlobs(blobs, region, pRows, pCols, sRows, sCols) {
-  const { x: rx, y: ry, w: rw, h: rh } = region;
-  const pW = rw / pCols, pH = rh / pRows;
-  const sW = pW / sCols, sH = pH / sRows;
-
-  // 각 기본분할영역에 속하는 블롭 찾기
-  const primaryAssign = Array.from({length: pRows*pCols}, () => []);
-
-  for (const blob of blobs) {
-    const relX = blob.cx - rx;
-    const relY = blob.cy - ry;
-    if (relX < 0 || relY < 0 || relX >= rw || relY >= rh) continue;
-
-    const pc = Math.floor(relX / pW);
-    const pr = Math.floor(relY / pH);
-    const pi = pr * pCols + pc;
-    if (pi >= 0 && pi < pRows*pCols) {
-      // 세부분할 인덱스
-      const sc = Math.floor((relX - pc*pW) / sW);
-      const sr = Math.floor((relY - pr*pH) / sH);
-      const si = sr * sCols + sc;
-      primaryAssign[pi].push({ blob, si });
-    }
-  }
-
-  const digits = primaryAssign.map(assigns => {
-    if (assigns.length === 0) return -1;  // 감지 실패
-    // 가장 큰 블롭의 세부분할 선택
-    assigns.sort((a, b) => b.blob.size - a.blob.size);
-    return assigns[0].si;
-  });
-
-  return digits;
-}
-
-// ── 신뢰도 계산 ─────────────────────────────────
-function calcConfidence(densities, digits) {
-  if (!densities || !digits) return 0;
-  let totalConf = 0;
-  for (let pi = 0; pi < densities.length; pi++) {
-    const d = densities[pi];
-    const chosen = digits[pi];
-    if (chosen < 0) continue;
-    const max = Math.max(...d);
-    const sorted = [...d].sort((a,b) => b-a);
-    const ratio = sorted.length > 1 && sorted[1] > 0 ? sorted[0]/sorted[1] : 10;
-    totalConf += Math.min(ratio / 3, 1);
-  }
-  return Math.round((totalConf / densities.length) * 100);
 }
 
 // ── 수동 마킹: 클릭 좌표 → 기본/세부분할 계산 ────
@@ -883,10 +965,7 @@ function addManualMark(canvasX, canvasY) {
   const pW = rw / pCols, pH = rh / pRows;
   const sW = pW / sCols, sH = pH / sRows;
 
-  // 영역 밖이면 무시
-  if (canvasX < rx || canvasX > rx+rw || canvasY < ry || canvasY > ry+rh) {
-    return;
-  }
+  if (canvasX < rx || canvasX > rx+rw || canvasY < ry || canvasY > ry+rh) return;
 
   const relX = canvasX - rx, relY = canvasY - ry;
   const pc = Math.min(Math.floor(relX / pW), pCols - 1);
@@ -899,27 +978,36 @@ function addManualMark(canvasX, canvasY) {
   const sr = Math.min(Math.floor(subRelY / sH), sRows - 1);
   const si = sr * sCols + sc;
 
-  // 같은 기본분할에 이미 마킹이 있으면 교체
   const existing = state.manualMarks.findIndex(m => m.pi === pi);
   const mark = { cx: canvasX, cy: canvasY, pi, si, digit: si };
   if (existing >= 0) state.manualMarks[existing] = mark;
   else state.manualMarks.push(mark);
 
-  // digits 배열 업데이트
   if (!state.digits) state.digits = Array(pRows * pCols).fill(-1);
   state.digits[pi] = si;
 
   updateResultDisplay();
+  drawSubzoneGrid();
   drawOverlay();
 }
 
-// ── 수동 마킹 초기화 ─────────────────────────────
 function clearManualMarks() {
   state.manualMarks = [];
   const pRows = parseInt(document.getElementById('primaryRows').value);
   const pCols = parseInt(document.getElementById('primaryCols').value);
-  state.digits = Array(pRows * pCols).fill(-1);
+  if (state.scores) {
+    // 자동 감지 결과 복원 (scores 기반)
+    const pCount = pRows * pCols;
+    state.digits = state.scores.map(s => {
+      let maxI = 0, maxV = -1;
+      s.forEach((v,i) => { if (v > maxV) { maxV = v; maxI = i; } });
+      return maxI;
+    });
+  } else {
+    state.digits = Array(pRows * pCols).fill(-1);
+  }
   updateResultDisplay();
+  drawSubzoneGrid();
   drawOverlay();
 }
 
@@ -939,6 +1027,190 @@ function updateResultDisplay() {
   });
 }
 
+// ── 세부분할영역 확대 그리드 그리기 ─────────────
+function drawSubzoneGrid() {
+  const container = document.getElementById('subzoneGrid');
+  const panel = document.getElementById('subzonePanel');
+  if (!container) return;
+
+  if (!state.imageData || !state.region || !state.scores) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+
+  const pRows = parseInt(document.getElementById('primaryRows').value);
+  const pCols = parseInt(document.getElementById('primaryCols').value);
+  const sRows = parseInt(document.getElementById('subRows').value);
+  const sCols = parseInt(document.getElementById('subCols').value);
+
+  const { x: rx, y: ry, w: rw, h: rh } = state.region;
+  const pW = rw / pCols, pH = rh / pRows;
+  const sW = pW / sCols, sH = pH / sRows;
+
+  const CELL_W = 58, CELL_H = 40;
+  const totalSubs = sRows * sCols;
+  const totalPrimary = pRows * pCols;
+
+  container.innerHTML = '';
+
+  // 컬럼 헤더
+  const headerRow = document.createElement('div');
+  headerRow.className = 'subzone-header-row';
+  for (let si = 0; si < totalSubs; si++) {
+    const h = document.createElement('div');
+    h.className = 'subzone-col-label';
+    h.style.width = CELL_W + 'px';
+    const sr = Math.floor(si / sCols), sc = si % sCols;
+    h.textContent = `S${si}(${sr},${sc})`;
+    headerRow.appendChild(h);
+  }
+  container.appendChild(headerRow);
+
+  // 기본분할 행 (P0~P7)
+  for (let pi = 0; pi < totalPrimary; pi++) {
+    const pr = Math.floor(pi / pCols);
+    const pc = pi % pCols;
+    const scores = state.scores[pi] || [];
+    const maxScore = Math.max(...scores, 0.0001);
+
+    // 2위 점수 찾기
+    const sorted = [...scores].sort((a,b) => b-a);
+    const secondScore = sorted.length > 1 ? sorted[1] : 0;
+
+    const row = document.createElement('div');
+    row.className = 'subzone-row';
+
+    // 행 레이블
+    const rowLabel = document.createElement('div');
+    rowLabel.className = 'subzone-row-label';
+    rowLabel.textContent = `P${pi}`;
+    row.appendChild(rowLabel);
+
+    for (let si = 0; si < totalSubs; si++) {
+      const sr = Math.floor(si / sCols);
+      const sc = si % sCols;
+
+      const cellX = Math.floor(rx + pc*pW + sc*sW);
+      const cellY = Math.floor(ry + pr*pH + sr*sH);
+      const cellW = Math.max(1, Math.floor(sW));
+      const cellH = Math.max(1, Math.floor(sH));
+
+      const isDetected = state.digits && state.digits[pi] === si;
+      const isSecond = !isDetected && scores[si] === secondScore && secondScore > 0;
+
+      const cellDiv = document.createElement('div');
+      cellDiv.className = 'subzone-cell' +
+        (isDetected ? ' detected' : isSecond ? ' high-score' : '');
+      cellDiv.style.width = CELL_W + 'px';
+      cellDiv.style.height = CELL_H + 'px';
+
+      // 썸네일 캔버스
+      const thumb = document.createElement('canvas');
+      thumb.width = CELL_W;
+      thumb.height = CELL_H;
+      const tctx = thumb.getContext('2d');
+
+      // 이미지 실제 좌표 → 캔버스 표시 좌표로 변환
+      // state.imageData는 mainCanvas 크기 기준, state.image는 원본
+      // loadImage에서 mainCanvas = scaled image이므로 직접 state.imageData 사용
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = cellW;
+      tmpCanvas.height = cellH;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      // mainCanvas에서 서브존 영역을 잘라서 그리기
+      tmpCtx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, cellW, cellH);
+
+      // 이상도 오버레이 (선택적)
+      if (state.anomalyData && state.imageData) {
+        const w = state.imageData.width;
+        const imgDataThumb = tctx.createImageData(CELL_W, CELL_H);
+        for (let ty = 0; ty < CELL_H; ty++) {
+          for (let tx = 0; tx < CELL_W; tx++) {
+            const srcX = Math.floor(cellX + (tx / CELL_W) * cellW);
+            const srcY = Math.floor(cellY + (ty / CELL_H) * cellH);
+            const srcIdx = srcY * w + srcX;
+            const aval = state.anomalyData[srcIdx] || 0;
+            const dstIdx = (ty * CELL_W + tx) * 4;
+            // 원본 픽셀
+            const origIdx = srcIdx * 4;
+            imgDataThumb.data[dstIdx]   = state.imageData.data[origIdx];
+            imgDataThumb.data[dstIdx+1] = state.imageData.data[origIdx+1];
+            imgDataThumb.data[dstIdx+2] = state.imageData.data[origIdx+2];
+            imgDataThumb.data[dstIdx+3] = 255;
+          }
+        }
+        tctx.putImageData(imgDataThumb, 0, 0);
+
+        // 이상도 히트맵 오버레이
+        for (let ty = 0; ty < CELL_H; ty++) {
+          for (let tx = 0; tx < CELL_W; tx++) {
+            const srcX = Math.floor(cellX + (tx / CELL_W) * cellW);
+            const srcY = Math.floor(cellY + (ty / CELL_H) * cellH);
+            const aval = state.anomalyData[srcY * w + srcX] || 0;
+            if (aval > 3) {
+              const intensity = Math.min(1, aval / 60);
+              tctx.fillStyle = `rgba(255,80,0,${intensity * 0.55})`;
+              tctx.fillRect(tx, ty, 1, 1);
+            }
+          }
+        }
+      } else {
+        tctx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, CELL_W, CELL_H);
+      }
+
+      cellDiv.appendChild(thumb);
+
+      // 점수 레이블
+      const score = scores[si] || 0;
+      const normalizedScore = Math.round((score / maxScore) * 100);
+      const scoreLabel = document.createElement('div');
+      scoreLabel.className = 'subzone-score-label';
+      scoreLabel.style.color = isDetected ? '#22c55e' : isSecond ? '#f59e0b' : 'rgba(255,255,255,0.4)';
+      scoreLabel.textContent = `${normalizedScore}%`;
+      cellDiv.appendChild(scoreLabel);
+
+      // S번호 레이블
+      const siLabel = document.createElement('div');
+      siLabel.className = 'subzone-si-label';
+      siLabel.textContent = `${si}`;
+      cellDiv.appendChild(siLabel);
+
+      // 클릭: 해당 P에서 이 S번호를 수동 지정
+      (function(capturedPi, capturedSi) {
+        cellDiv.addEventListener('click', () => {
+          if (!state.digits) {
+            state.digits = Array(totalPrimary).fill(-1);
+          }
+          state.digits[capturedPi] = capturedSi;
+
+          // 수동 마크에도 추가
+          const existing = state.manualMarks.findIndex(m => m.pi === capturedPi);
+          const { x: rx2, y: ry2, w: rw2, h: rh2 } = state.region;
+          const pW2 = rw2 / pCols, pH2 = rh2 / pRows;
+          const sW2 = pW2 / sCols, sH2 = pH2 / sRows;
+          const pr2 = Math.floor(capturedPi / pCols), pc2 = capturedPi % pCols;
+          const sr2 = Math.floor(capturedSi / sCols), sc2 = capturedSi % sCols;
+          const cx = rx2 + pc2*pW2 + sc2*sW2 + sW2/2;
+          const cy = ry2 + pr2*pH2 + sr2*sH2 + sH2/2;
+          const mark = { cx, cy, pi: capturedPi, si: capturedSi, digit: capturedSi };
+          if (existing >= 0) state.manualMarks[existing] = mark;
+          else state.manualMarks.push(mark);
+
+          updateResultDisplay();
+          drawSubzoneGrid();
+          drawOverlay();
+        });
+      })(pi, si);
+
+      row.appendChild(cellDiv);
+    }
+
+    container.appendChild(row);
+  }
+}
+
 // ── 오버레이 그리기 ──────────────────────────────
 function drawOverlay() {
   if (!state.image || !state.region) return;
@@ -946,7 +1218,6 @@ function drawOverlay() {
   const scale = mainCanvas.width / state.image.naturalWidth;
   const { x: rx, y: ry, w: rw, h: rh } = state.region;
 
-  // scale adjusted
   const srx = rx * scale, sry = ry * scale;
   const srw = rw * scale, srh = rh * scale;
 
@@ -967,22 +1238,22 @@ function drawOverlay() {
   octx.strokeRect(srx, sry, srw, srh);
   octx.setLineDash([]);
 
-  // 히트맵
-  if (state.showHeat && state.densities) {
+  // 이상도 히트맵
+  if (state.showHeat && state.scores) {
     for (let pr = 0; pr < pRows; pr++) {
       for (let pc = 0; pc < pCols; pc++) {
         const pi = pr * pCols + pc;
-        const d = state.densities[pi];
-        if (!d) continue;
-        const maxD = Math.max(...d);
+        const s = state.scores[pi];
+        if (!s) continue;
+        const maxS = Math.max(...s, 0.0001);
 
         for (let sr = 0; sr < sRows; sr++) {
           for (let sc = 0; sc < sCols; sc++) {
             const si = sr * sCols + sc;
-            const intensity = maxD > 0 ? d[si] / maxD : 0;
+            const intensity = s[si] / maxS;
             const x = srx + pc*pW + sc*sW;
             const y = sry + pr*pH + sr*sH;
-            octx.fillStyle = `rgba(91,124,250,${intensity * 0.4})`;
+            octx.fillStyle = `rgba(255,80,0,${intensity * 0.45})`;
             octx.fillRect(x, y, sW, sH);
           }
         }
@@ -992,23 +1263,17 @@ function drawOverlay() {
 
   // 세부분할 그리드
   if (state.showSub) {
-    octx.strokeStyle = 'rgba(120,200,255,0.4)';
+    octx.strokeStyle = 'rgba(120,200,255,0.35)';
     octx.lineWidth = 0.5;
     for (let pr = 0; pr < pRows; pr++) {
       for (let pc = 0; pc < pCols; pc++) {
-        for (let sr = 0; sr <= sRows; sr++) {
+        for (let sr = 1; sr < sRows; sr++) {
           const y = sry + pr*pH + sr*sH;
-          const x0 = srx + pc*pW, x1 = srx + (pc+1)*pW;
-          if (sr > 0 && sr < sRows) {
-            octx.beginPath(); octx.moveTo(x0, y); octx.lineTo(x1, y); octx.stroke();
-          }
+          octx.beginPath(); octx.moveTo(srx + pc*pW, y); octx.lineTo(srx + (pc+1)*pW, y); octx.stroke();
         }
-        for (let sc = 0; sc <= sCols; sc++) {
+        for (let sc = 1; sc < sCols; sc++) {
           const x = srx + pc*pW + sc*sW;
-          const y0 = sry + pr*pH, y1 = sry + (pr+1)*pH;
-          if (sc > 0 && sc < sCols) {
-            octx.beginPath(); octx.moveTo(x, y0); octx.lineTo(x, y1); octx.stroke();
-          }
+          octx.beginPath(); octx.moveTo(x, sry + pr*pH); octx.lineTo(x, sry + (pr+1)*pH); octx.stroke();
         }
       }
     }
@@ -1028,7 +1293,7 @@ function drawOverlay() {
     }
 
     // 기본분할 레이블
-    octx.fillStyle = 'rgba(245,158,11,0.8)';
+    octx.fillStyle = 'rgba(245,158,11,0.85)';
     octx.font = `${Math.max(8, Math.min(14, pH/4))}px monospace`;
     for (let pr = 0; pr < pRows; pr++) {
       for (let pc = 0; pc < pCols; pc++) {
@@ -1038,24 +1303,32 @@ function drawOverlay() {
     }
   }
 
-  // 감지된 점 표시 (밀도 기반)
-  if (state.showDots && state.digits && state.densities) {
+  // 감지 점 표시 (이상도 기반)
+  if (state.showDots && state.digits && state.scores) {
     for (let pr = 0; pr < pRows; pr++) {
       for (let pc = 0; pc < pCols; pc++) {
         const pi = pr * pCols + pc;
         const digit = state.digits[pi];
         if (digit < 0) continue;
 
+        const scores = state.scores[pi] || [];
+        const maxScore = Math.max(...scores, 0.0001);
+        const scoreRatio = scores[digit] / maxScore;
+
         const sr = Math.floor(digit / sCols);
         const sc = digit % sCols;
         const cx = srx + pc*pW + sc*sW + sW/2;
         const cy = sry + pr*pH + sr*sH + sH/2;
-        const r = Math.min(sW, sH) * 0.3;
+        const r = Math.min(sW, sH) * 0.28;
 
-        // 점 하이라이트
-        octx.fillStyle = 'rgba(239,68,68,0.25)';
+        // 신뢰도에 따른 색상 (높으면 초록, 낮으면 노랑)
+        const color = scoreRatio > 0.7 ? '#22c55e' : scoreRatio > 0.4 ? '#f59e0b' : '#ef4444';
+
+        octx.fillStyle = color.replace(')', ',0.2)').replace('rgb', 'rgba').replace('#22c55e', 'rgba(34,197,94,0.2)').replace('#f59e0b', 'rgba(245,158,11,0.2)').replace('#ef4444', 'rgba(239,68,68,0.2)');
+        octx.fillStyle = `rgba(${hexToRgb(color)},0.2)`;
         octx.beginPath(); octx.arc(cx, cy, r*1.8, 0, Math.PI*2); octx.fill();
-        octx.strokeStyle = '#ef4444';
+
+        octx.strokeStyle = color;
         octx.lineWidth = 1.5;
         octx.beginPath(); octx.arc(cx, cy, r, 0, Math.PI*2); octx.stroke();
 
@@ -1071,31 +1344,14 @@ function drawOverlay() {
     }
   }
 
-  // 블롭 표시
-  if (state.showDots && state.blobs) {
-    for (const blob of state.blobs) {
-      const x = blob.cx * scale;
-      const y = blob.cy * scale;
-      octx.strokeStyle = 'rgba(34,197,94,0.8)';
-      octx.lineWidth = 1;
-      octx.beginPath(); octx.arc(x, y, 4, 0, Math.PI*2); octx.stroke();
-    }
-  }
-
-  // ── 수동 마킹 표시 ────────────────────────────
+  // 수동 마킹 표시
   for (const mark of state.manualMarks) {
     const mx = mark.cx, my = mark.cy;
-
-    // 바깥 원
     octx.strokeStyle = '#f97316';
     octx.lineWidth = 2;
     octx.beginPath(); octx.arc(mx, my, 10, 0, Math.PI*2); octx.stroke();
-
-    // 안쪽 점
     octx.fillStyle = '#f97316';
     octx.beginPath(); octx.arc(mx, my, 3, 0, Math.PI*2); octx.fill();
-
-    // 번호 레이블 (P번호:자릿수)
     const labelX = mx + 13, labelY = my - 8;
     octx.fillStyle = 'rgba(0,0,0,0.7)';
     octx.fillRect(labelX - 2, labelY - 11, 46, 15);
@@ -1104,18 +1360,24 @@ function drawOverlay() {
     octx.fillText(`P${mark.pi}→${mark.digit}`, labelX, labelY);
   }
 
-  // 수동 마킹 모드 안내 테두리
+  // 수동 마킹 모드 안내
   if (state.manualMode) {
     octx.strokeStyle = 'rgba(239,68,68,0.5)';
     octx.lineWidth = 3;
     octx.setLineDash([8, 4]);
     octx.strokeRect(2, 2, overlayCanvas.width - 4, overlayCanvas.height - 4);
     octx.setLineDash([]);
-
-    octx.fillStyle = 'rgba(239,68,68,0.8)';
+    octx.fillStyle = 'rgba(239,68,68,0.85)';
     octx.font = 'bold 13px sans-serif';
     octx.fillText('✋ 클릭 마킹 모드', 10, 20);
   }
+}
+
+// hex → rgb 헬퍼
+function hexToRgb(hex) {
+  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return '255,255,255';
+  return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`;
 }
 
 // ── 이미지 로드 및 표시 ──────────────────────────
@@ -1126,7 +1388,6 @@ function loadImage(file) {
     img.onload = () => {
       state.image = img;
 
-      // 캔버스 크기 설정 (최대 800px 너비로 제한)
       const maxW = 900;
       const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
       const cw = Math.round(img.naturalWidth * scale);
@@ -1143,7 +1404,6 @@ function loadImage(file) {
       document.getElementById('emptyState').style.display = 'none';
       document.getElementById('canvasWrap').style.display = 'inline-block';
 
-      // 영역 자동 감지
       if (state.autoDetect) {
         state.region = autoDetectRegion(state.imageData);
         updateManualFields();
@@ -1179,9 +1439,9 @@ function updateManualFields() {
 function analyze() {
   if (!state.imageData) return alert('이미지를 먼저 업로드하세요.');
 
-  const threshold = parseInt(document.getElementById('threshSlider').value);
-  const minSize = parseInt(document.getElementById('minSizeSlider').value);
-  const maxSize = parseInt(document.getElementById('maxSizeSlider').value);
+  const blurRadius = parseInt(document.getElementById('blurRadiusSlider').value);
+  const winSize    = parseInt(document.getElementById('winSizeSlider').value);
+  const anomalyThresh = parseFloat(document.getElementById('anomalyThreshSlider').value);
   const pRows = parseInt(document.getElementById('primaryRows').value);
   const pCols = parseInt(document.getElementById('primaryCols').value);
   const sRows = parseInt(document.getElementById('subRows').value);
@@ -1190,37 +1450,38 @@ function analyze() {
   if (!state.autoDetect) state.region = getManualRegion();
   else if (!state.region) state.region = autoDetectRegion(state.imageData);
 
-  const w = state.imageData.width;
-  const h = state.imageData.height;
-  const bin = toGrayBinary(state.imageData, threshold);
+  // 진행 표시
+  const progressEl = document.getElementById('analyzeProgress');
+  progressEl.style.display = 'block';
+  document.getElementById('analyzeBtn').disabled = true;
 
-  // 블롭 감지 (전체 이미지)
-  state.blobs = findBlobs(bin, w, h, minSize, maxSize);
+  // 비동기로 실행 (UI 블록 방지)
+  setTimeout(() => {
+    try {
+      const result = analyzeSubzones(
+        state.imageData, state.region,
+        pRows, pCols, sRows, sCols,
+        blurRadius, winSize, anomalyThresh
+      );
 
-  // 밀도 기반 분석 (기본)
-  const { digits: dDens, densities } = analyzeDensity(bin, w, state.region, pRows, pCols, sRows, sCols);
+      state.digits = result.digits;
+      state.scores = result.scores;
+      state.anomalyData = result.anomaly;
 
-  // 블롭 기반 분석 (보조)
-  const dBlob = decodeFromBlobs(state.blobs, state.region, pRows, pCols, sRows, sCols);
+      updateResultDisplay();
 
-  // 블롭 감지 결과가 있으면 혼합
-  const digits = dDens.map((dd, i) => {
-    if (dBlob[i] >= 0) return dBlob[i];
-    return dd;
-  });
+      const conf = calcConfidence(result.scores, result.digits);
+      document.getElementById('statZones').textContent = `${pRows*pCols}`;
+      document.getElementById('statConf').textContent = `${conf}%`;
+      document.getElementById('statAlgo').textContent = '배경감산';
 
-  state.digits = digits;
-  state.densities = densities;
-
-  // 결과 표시
-  updateResultDisplay();
-
-  const conf = calcConfidence(densities, digits);
-  document.getElementById('statZones').textContent = `${pRows*pCols}`;
-  document.getElementById('statDots').textContent = state.blobs.length;
-  document.getElementById('statConf').textContent = `${conf}%`;
-
-  drawOverlay();
+      drawOverlay();
+      drawSubzoneGrid();
+    } finally {
+      progressEl.style.display = 'none';
+      document.getElementById('analyzeBtn').disabled = false;
+    }
+  }, 20);
 }
 
 // ── 초기화 ──────────────────────────────────────
@@ -1229,8 +1490,9 @@ function resetAll() {
   state.imageData = null;
   state.region = null;
   state.digits = null;
-  state.densities = null;
-  state.blobs = null;
+  state.scores = null;
+  state.anomalyData = null;
+  state.manualMarks = [];
 
   ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
   octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -1240,9 +1502,11 @@ function resetAll() {
   document.getElementById('resultCode').textContent = '————————';
   document.getElementById('codeDisplay').innerHTML = '';
   document.getElementById('statZones').textContent = '—';
-  document.getElementById('statDots').textContent = '—';
   document.getElementById('statConf').textContent = '—';
+  document.getElementById('statAlgo').textContent = '—';
   document.getElementById('fileInput').value = '';
+  document.getElementById('subzonePanel').style.display = 'none';
+  document.getElementById('subzoneGrid').innerHTML = '';
 }
 
 // ============================================================
@@ -1265,11 +1529,9 @@ function generateEncoderImage() {
   encCanvas.height = ph;
   const ec = encCanvas.getContext('2d');
 
-  // 배경
   ec.fillStyle = '#ffffff';
   ec.fillRect(0, 0, pw, ph);
 
-  // 샘플 텍스트 배경
   if (showText) {
     ec.fillStyle = '#222222';
     ec.font = '11px monospace';
@@ -1292,14 +1554,12 @@ function generateEncoderImage() {
       '본 문서는 대외비로 분류되며 무단 복사,',
       '전송, 배포를 금지합니다.',
     ];
-
     const marginX = 60, marginY = 80;
     sampleTexts.forEach((line, i) => {
       ec.fillText(line, marginX, marginY + i * 18);
     });
   }
 
-  // 코드삽입영역 계산 (여백 포함)
   const margin = 50;
   const rx = margin, ry = margin;
   const rw = pw - 2*margin, rh = ph - 2*margin;
@@ -1309,7 +1569,6 @@ function generateEncoderImage() {
   const pW = rw / pCols, pH = rh / pRows;
   const sW = pW / sCols, sH = pH / sRows;
 
-  // 점 삽입
   const alpha = (dotAlpha / 255).toFixed(2);
   ec.fillStyle = `rgba(0,0,0,${alpha})`;
 
@@ -1345,24 +1604,20 @@ function getDigitValues() {
   }).join('');
 }
 
-// ── 자릿수 입력 UI 생성 ──────────────────────────
 function buildDigitInputs() {
   const container = document.getElementById('digitInputs');
   container.innerHTML = '';
   for (let i = 0; i < 8; i++) {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px';
-
     const lbl = document.createElement('div');
     lbl.textContent = `P${i}`;
     lbl.style.cssText = 'font-size:9px;color:var(--muted)';
-
     const inp = document.createElement('input');
     inp.type = 'number';
     inp.id = `dInput${i}`;
     inp.min = 0; inp.max = 7; inp.value = 0;
     inp.style.cssText = 'width:40px;text-align:center;padding:6px 4px;font-size:14px;font-weight:700;';
-
     wrap.appendChild(lbl);
     wrap.appendChild(inp);
     container.appendChild(wrap);
@@ -1399,7 +1654,6 @@ uploadZone.addEventListener('drop', e => {
   if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
 });
 
-// 전체 영역 드래그앤드롭
 document.getElementById('canvasArea').addEventListener('dragover', e => e.preventDefault());
 document.getElementById('canvasArea').addEventListener('drop', e => {
   e.preventDefault();
@@ -1453,20 +1707,16 @@ makeToggle('manualMarkToggle', 'manualMode', () => {
   drawOverlay();
 });
 
-// 수동 마킹 초기화
 document.getElementById('clearMarksBtn').addEventListener('click', clearManualMarks);
 
-// ── 캔버스 클릭 → 수동 마킹 ──────────────────────
+// 캔버스 클릭 → 수동 마킹
 overlayCanvas.addEventListener('click', (e) => {
   if (!state.manualMode || !state.image) return;
-
   const rect = overlayCanvas.getBoundingClientRect();
-  // 캔버스 실제 크기 vs 표시 크기 비율 보정
   const scaleX = overlayCanvas.width / rect.width;
   const scaleY = overlayCanvas.height / rect.height;
   const cx = (e.clientX - rect.left) * scaleX;
   const cy = (e.clientY - rect.top) * scaleY;
-
   addManualMark(cx, cy);
 });
 
@@ -1474,13 +1724,14 @@ overlayCanvas.addEventListener('click', (e) => {
 function bindSlider(sliderId, valueId, suffix = '') {
   const slider = document.getElementById(sliderId);
   const val = document.getElementById(valueId);
+  if (!slider || !val) return;
   slider.addEventListener('input', () => {
     val.textContent = slider.value + suffix;
   });
 }
-bindSlider('threshSlider', 'threshVal');
-bindSlider('minSizeSlider', 'minSizeVal');
-bindSlider('maxSizeSlider', 'maxSizeVal');
+bindSlider('blurRadiusSlider', 'blurRadiusVal');
+bindSlider('winSizeSlider', 'winSizeVal');
+bindSlider('anomalyThreshSlider', 'anomalyThreshVal');
 bindSlider('dotSizeSlider', 'dotSizeVal');
 document.getElementById('dotAlphaSlider').addEventListener('input', function() {
   document.getElementById('dotAlphaVal').textContent = Math.round(this.value/255*100) + '%';
