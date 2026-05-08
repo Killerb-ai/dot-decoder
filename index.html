@@ -496,29 +496,29 @@
     <hr class="divider">
 
     <div class="section">
-      <div class="section-title">감지 설정 (배경감산)</div>
+      <div class="section-title">감지 설정</div>
       <div class="param-group">
         <div class="param-row">
-          <span class="param-label">배경 블러 반경 (px)</span>
+          <span class="param-label">점 탐색 윈도우 (px)</span>
+          <span class="param-value" id="winSizeVal">9</span>
+        </div>
+        <input type="range" id="winSizeSlider" min="3" max="40" value="9">
+
+        <div class="param-row">
+          <span class="param-label">히트맵 블러 반경</span>
           <span class="param-value" id="blurRadiusVal">20</span>
         </div>
         <input type="range" id="blurRadiusSlider" min="5" max="60" value="20">
 
         <div class="param-row">
-          <span class="param-label">윈도우 크기 (px)</span>
-          <span class="param-value" id="winSizeVal">7</span>
-        </div>
-        <input type="range" id="winSizeSlider" min="3" max="30" value="7">
-
-        <div class="param-row">
-          <span class="param-label">최소 이상값 임계</span>
+          <span class="param-label">이상도 임계값</span>
           <span class="param-value" id="anomalyThreshVal">5</span>
         </div>
         <input type="range" id="anomalyThreshSlider" min="1" max="50" value="5">
       </div>
       <div class="info-box" style="font-size:10px; margin-top:4px">
-        💡 블러 반경: 점보다 훨씬 크게 설정 (권장 15~30)<br>
-        💡 윈도우: 점 크기보다 약간 크게 (권장 5~15)
+        💡 점 탐색 윈도우: 인쇄된 점 크기와 비슷하게 (권장 5~15)<br>
+        💡 각 서브존을 독립적으로 로컬 분석 — 텍스트 간섭 최소화
       </div>
     </div>
 
@@ -843,30 +843,88 @@ function maxWindowScore(anomaly, w, x0, y0, x1, y1, winSize, minAnomaly) {
   return maxScore;
 }
 
-// ── 메인 분석 함수 ────────────────────────────────
+// ── 서브존별 로컬 점 점수 계산 ───────────────────
+// 각 서브존 내에서 독립적으로 배경 추정 → 가장 집중된 어두운 클러스터 점수
+function scoreSubzoneForDot(data, imgW, x0, y0, x1, y1, winSize) {
+  const subW = x1 - x0, subH = y1 - y0;
+  if (subW <= 0 || subH <= 0) return 0;
+
+  // 서브존 내 회색조 추출
+  const grays = new Float32Array(subW * subH);
+  let idx = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const pi = (y * imgW + x) * 4;
+      grays[idx++] = 0.299 * data[pi] + 0.587 * data[pi+1] + 0.114 * data[pi+2];
+    }
+  }
+
+  // 로컬 배경 = 상위 85번째 백분위수 (흰 배경 추정)
+  // 정렬 복사본에서 백분위 추출
+  const sorted = grays.slice().sort();
+  const bgIdx = Math.floor(sorted.length * 0.85);
+  const bg = sorted[bgIdx];
+
+  // 이상도 = max(0, 배경 - 픽셀값)  → 점은 양수, 밝은 배경은 0
+  const anomaly = new Float32Array(subW * subH);
+  for (let i = 0; i < grays.length; i++) {
+    anomaly[i] = Math.max(0, bg - grays[i]);
+  }
+
+  // 적응형 윈도우 크기 (서브존 단변의 최대 20%)
+  const aw = Math.max(3, Math.min(winSize, Math.floor(Math.min(subW, subH) * 0.35)));
+  const hw = Math.floor(aw / 2);
+
+  // 슬라이딩 윈도우로 최대 집중 이상도 탐색
+  let maxScore = 0;
+
+  // 적분 이미지 구축으로 O(n) 슬라이딩
+  // rowSum[y][x] = sum of anomaly[y][0..x-1]
+  const rowSum = new Float32Array((subH + 1) * (subW + 1));
+  for (let y = 0; y < subH; y++) {
+    for (let x = 0; x < subW; x++) {
+      rowSum[(y+1)*(subW+1)+(x+1)] =
+        rowSum[y*(subW+1)+(x+1)] +
+        rowSum[(y+1)*(subW+1)+x] -
+        rowSum[y*(subW+1)+x] +
+        anomaly[y*subW+x];
+    }
+  }
+
+  for (let y = hw; y < subH - hw; y++) {
+    for (let x = hw; x < subW - hw; x++) {
+      const r1 = y - hw, c1 = x - hw;
+      const r2 = y + hw + 1, c2 = x + hw + 1;
+      const sum = rowSum[r2*(subW+1)+c2] - rowSum[r1*(subW+1)+c2]
+                - rowSum[r2*(subW+1)+c1] + rowSum[r1*(subW+1)+c1];
+      if (sum > maxScore) maxScore = sum;
+    }
+  }
+
+  // 윈도우 넓이로 정규화 (크기 독립적 점수)
+  return maxScore / (aw * aw);
+}
+
+// ── 메인 분석 함수 (서브존별 로컬 분석) ──────────
 function analyzeSubzones(imageData, region, pRows, pCols, sRows, sCols, blurRadius, winSize, anomalyThresh) {
   const w = imageData.width;
   const h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
+  const data = imageData.data;
 
-  // 회색조 변환
+  const pW = rw / pCols, pH = rh / pRows;
+  const sW = pW / sCols, sH = pH / sRows;
+
+  const allScores = [];
+  const digits = [];
+
+  // 전역 이상도 맵 (시각화용 — 전역 박스 블러)
   const gray = toGrayFloat(imageData);
-
-  // 배경 추정 (큰 블러)
   const blurred = boxBlur(gray, w, h, blurRadius);
-
-  // 이상도 = max(0, 배경 - 원본)  → 점(어두운)은 양수
   const anomaly = new Float32Array(w * h);
   for (let i = 0; i < anomaly.length; i++) {
     anomaly[i] = Math.max(0, blurred[i] - gray[i]);
   }
-
-  const pW = rw / pCols, pH = rh / pRows;
-  const sW = pW / sCols, sH = pH / sRows;
-  const totalSubs = sRows * sCols;
-
-  const allScores = [];
-  const digits = [];
 
   for (let pr = 0; pr < pRows; pr++) {
     for (let pc = 0; pc < pCols; pc++) {
@@ -879,14 +937,15 @@ function analyzeSubzones(imageData, region, pRows, pCols, sRows, sCols, blurRadi
           const x1 = Math.ceil(rx + pc*pW + (sc+1)*sW);
           const y1 = Math.ceil(ry + pr*pH + (sr+1)*sH);
 
-          const score = maxWindowScore(anomaly, w, x0, y0, x1, y1, winSize, anomalyThresh);
+          // ★ 서브존별 독립 로컬 분석
+          const score = scoreSubzoneForDot(data, w, x0, y0, x1, y1, winSize);
           scores.push(score);
         }
       }
 
       allScores.push(scores);
 
-      // 최고 이상도 세부분할 = 해당 자릿수
+      // 최고 점수 세부분할 = 해당 자릿수
       let maxS = -1, maxI = 0;
       for (let i = 0; i < scores.length; i++) {
         if (scores[i] > maxS) { maxS = scores[i]; maxI = i; }
@@ -1106,58 +1165,28 @@ function drawSubzoneGrid() {
       cellDiv.style.width = CELL_W + 'px';
       cellDiv.style.height = CELL_H + 'px';
 
-      // 썸네일 캔버스
+      // 썸네일 캔버스 — mainCanvas에서 서브존 확대
       const thumb = document.createElement('canvas');
       thumb.width = CELL_W;
       thumb.height = CELL_H;
       const tctx = thumb.getContext('2d');
 
-      // 이미지 실제 좌표 → 캔버스 표시 좌표로 변환
-      // state.imageData는 mainCanvas 크기 기준, state.image는 원본
-      // loadImage에서 mainCanvas = scaled image이므로 직접 state.imageData 사용
-      const tmpCanvas = document.createElement('canvas');
-      tmpCanvas.width = cellW;
-      tmpCanvas.height = cellH;
-      const tmpCtx = tmpCanvas.getContext('2d');
-      // mainCanvas에서 서브존 영역을 잘라서 그리기
-      tmpCtx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, cellW, cellH);
+      // 실제 이미지 픽셀 직접 확대 표시
+      tctx.imageSmoothingEnabled = false;
+      tctx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, CELL_W, CELL_H);
 
-      // 이상도 오버레이 (선택적)
-      if (state.anomalyData && state.imageData) {
-        const w = state.imageData.width;
-        const imgDataThumb = tctx.createImageData(CELL_W, CELL_H);
-        for (let ty = 0; ty < CELL_H; ty++) {
-          for (let tx = 0; tx < CELL_W; tx++) {
-            const srcX = Math.floor(cellX + (tx / CELL_W) * cellW);
-            const srcY = Math.floor(cellY + (ty / CELL_H) * cellH);
-            const srcIdx = srcY * w + srcX;
-            const aval = state.anomalyData[srcIdx] || 0;
-            const dstIdx = (ty * CELL_W + tx) * 4;
-            // 원본 픽셀
-            const origIdx = srcIdx * 4;
-            imgDataThumb.data[dstIdx]   = state.imageData.data[origIdx];
-            imgDataThumb.data[dstIdx+1] = state.imageData.data[origIdx+1];
-            imgDataThumb.data[dstIdx+2] = state.imageData.data[origIdx+2];
-            imgDataThumb.data[dstIdx+3] = 255;
-          }
-        }
-        tctx.putImageData(imgDataThumb, 0, 0);
-
-        // 이상도 히트맵 오버레이
-        for (let ty = 0; ty < CELL_H; ty++) {
-          for (let tx = 0; tx < CELL_W; tx++) {
-            const srcX = Math.floor(cellX + (tx / CELL_W) * cellW);
-            const srcY = Math.floor(cellY + (ty / CELL_H) * cellH);
-            const aval = state.anomalyData[srcY * w + srcX] || 0;
-            if (aval > 3) {
-              const intensity = Math.min(1, aval / 60);
-              tctx.fillStyle = `rgba(255,80,0,${intensity * 0.55})`;
-              tctx.fillRect(tx, ty, 1, 1);
-            }
-          }
-        }
-      } else {
-        tctx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, CELL_W, CELL_H);
+      // 감지된 서브존이면 중앙에 크로스헤어 표시
+      if (isDetected) {
+        const cx2 = CELL_W / 2, cy2 = CELL_H / 2;
+        tctx.strokeStyle = 'rgba(34,197,94,0.9)';
+        tctx.lineWidth = 1.5;
+        tctx.beginPath();
+        tctx.arc(cx2, cy2, Math.min(CELL_W, CELL_H) * 0.3, 0, Math.PI * 2);
+        tctx.stroke();
+        tctx.beginPath();
+        tctx.moveTo(cx2 - 6, cy2); tctx.lineTo(cx2 + 6, cy2);
+        tctx.moveTo(cx2, cy2 - 6); tctx.lineTo(cx2, cy2 + 6);
+        tctx.stroke();
       }
 
       cellDiv.appendChild(thumb);
