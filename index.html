@@ -95,7 +95,33 @@
       position: relative;
       overflow: auto;
       background: #080b14;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 48px 16px 16px;
+    }
+    .zoom-toolbar {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(26,29,39,0.92);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    }
+    .zoom-toolbar .btn {
+      width: auto;
+      padding: 5px 9px;
+      font-size: 12px;
+    }
+    .zoom-label {
+      min-width: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
     }
     .result-bar {
       height: 90px;
@@ -136,6 +162,33 @@
       padding: 8px 16px 12px;
       overflow-x: auto;
     }
+    .subzone-inspector {
+      display: none;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 10px 16px 14px;
+      border-top: 1px solid var(--border);
+      background: rgba(8,11,20,0.45);
+    }
+    .subzone-inspector.show { display: flex; }
+    .subzone-inspector-canvas {
+      width: 360px;
+      height: 240px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+    .subzone-inspector-meta {
+      display: grid;
+      gap: 6px;
+      min-width: 160px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .subzone-inspector-meta strong { color: var(--text); }
     .subzone-row {
       display: flex;
       gap: 3px;
@@ -300,7 +353,6 @@
     /* Canvas overlays */
     #mainCanvas {
       display: block;
-      max-width: 100%; max-height: calc(100vh - 260px);
       image-rendering: pixelated;
     }
     .canvas-wrap { position: relative; display: inline-block; }
@@ -410,7 +462,7 @@
     <div class="header-title">점은닉 디코더</div>
     <div class="header-sub">문건 식별정보 삽입 기술 (KR 10-1989170) 기반 분석기</div>
   </div>
-  <div class="header-badge">v4.3 · 1픽셀 점 감지</div>
+  <div class="header-badge">v4.4 · 원본해상도/줌/확대분석</div>
 </div>
 
 <!-- Tabs -->
@@ -566,6 +618,12 @@
   <!-- Right panel -->
   <div class="panel-right">
     <div class="canvas-area" id="canvasArea">
+      <div class="zoom-toolbar">
+        <button class="btn btn-secondary btn-sm" id="zoomOutBtn" type="button">−</button>
+        <button class="btn btn-secondary btn-sm" id="zoomResetBtn" type="button">100%</button>
+        <button class="btn btn-secondary btn-sm" id="zoomInBtn" type="button">+</button>
+        <span class="zoom-label" id="zoomLabel">100%</span>
+      </div>
       <div id="emptyState" style="text-align:center; color:var(--muted)">
         <div style="font-size:60px; margin-bottom:16px">🖨️</div>
         <div style="font-size:16px; margin-bottom:8px">이미지를 업로드하세요</div>
@@ -618,6 +676,10 @@
         </span>
       </div>
       <div id="subzoneGrid"></div>
+      <div class="subzone-inspector" id="subzoneInspector">
+        <canvas class="subzone-inspector-canvas" id="subzoneInspectorCanvas" width="360" height="240"></canvas>
+        <div class="subzone-inspector-meta" id="subzoneInspectorMeta"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -696,7 +758,7 @@
 <div id="helpTab" class="main" style="display:none; padding:24px; overflow-y:auto; flex-direction:column; gap:16px;">
   <div style="max-width:700px; margin:0 auto; width:100%">
     <h2 style="font-size:20px; margin-bottom:4px">📖 사용 가이드</h2>
-    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 v4.3 사용법</p>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 v4.4 사용법</p>
 
     <div class="info-box" style="margin-bottom:12px; font-size:12px">
       <strong style="color:var(--text)">🆕 v4.0 배경이상도 알고리즘 (Local Background Anomaly)</strong><br><br>
@@ -765,6 +827,8 @@ let state = {
   showHeat: false,
   manualMode: false,
   manualMarks: [],
+  selectedSubzone: null,
+  zoom: 1,
 };
 
 const mainCanvas = document.getElementById('mainCanvas');
@@ -903,6 +967,7 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
 
       // 서브존별 이상도 합산
       const scores = new Array(S_ROWS * S_COLS).fill(0);
+      const subBest = new Array(S_ROWS * S_COLS).fill(null);
       let maxScore = -1, maxSi = 0;
       let bestX = zx0 + (zx1 - zx0) / 2;
       let bestY = zy0 + (zy1 - zy0) / 2;
@@ -953,14 +1018,17 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
             sumX += c.cx * dotBoost;
             sumY += c.cy * dotBoost;
             cnt += dotBoost;
+            if (!subBest[si] || dotBoost > subBest[si].score) {
+              subBest[si] = { cx: c.cx, cy: c.cy, score: dotBoost, area: c.area, meanGray: c.meanGray };
+            }
           }
 
           scores[si] = score;
           if (score > maxScore) {
             maxScore = score;
             maxSi = si;
-            bestX = cnt > 0 ? sumX / cnt : (sx0 + sx1) / 2;
-            bestY = cnt > 0 ? sumY / cnt : (sy0 + sy1) / 2;
+            bestX = subBest[si]?.cx ?? (cnt > 0 ? sumX / cnt : (sx0 + sx1) / 2);
+            bestY = subBest[si]?.cy ?? (cnt > 0 ? sumY / cnt : (sy0 + sy1) / 2);
           }
         }
       }
@@ -1278,6 +1346,21 @@ function updateResultDisplay() {
   });
 }
 
+function applyZoom(nextZoom) {
+  state.zoom = Math.min(4, Math.max(0.2, nextZoom));
+  const pct = Math.round(state.zoom * 100);
+  document.getElementById('zoomLabel').textContent = `${pct}%`;
+  if (!mainCanvas.width || !mainCanvas.height) return;
+  mainCanvas.style.width = `${Math.round(mainCanvas.width * state.zoom)}px`;
+  mainCanvas.style.height = `${Math.round(mainCanvas.height * state.zoom)}px`;
+  overlayCanvas.style.width = mainCanvas.style.width;
+  overlayCanvas.style.height = mainCanvas.style.height;
+}
+
+function zoomBy(factor) {
+  applyZoom(state.zoom * factor);
+}
+
 // ── 세부분할영역 확대 그리드 그리기 ─────────────
 function drawSubzoneGrid() {
   const container = document.getElementById('subzoneGrid');
@@ -1286,6 +1369,7 @@ function drawSubzoneGrid() {
 
   if (!state.imageData || !state.region || !state.scores) {
     panel.style.display = 'none';
+    hideSubzoneInspector();
     return;
   }
 
@@ -1419,6 +1503,7 @@ function drawSubzoneGrid() {
           if (existing >= 0) state.manualMarks[existing] = mark;
           else state.manualMarks.push(mark);
 
+          state.selectedSubzone = { pi: capturedPi, si: capturedSi };
           updateResultDisplay();
           drawSubzoneGrid();
           drawOverlay();
@@ -1430,6 +1515,86 @@ function drawSubzoneGrid() {
 
     container.appendChild(row);
   }
+
+  if (state.selectedSubzone) {
+    showSubzoneInspector(state.selectedSubzone.pi, state.selectedSubzone.si);
+  }
+}
+
+function hideSubzoneInspector() {
+  const inspector = document.getElementById('subzoneInspector');
+  if (inspector) inspector.classList.remove('show');
+}
+
+function showSubzoneInspector(pi, si) {
+  if (!state.imageData || !state.region) return;
+
+  const pRows = parseInt(document.getElementById('primaryRows').value);
+  const pCols = parseInt(document.getElementById('primaryCols').value);
+  const sRows = parseInt(document.getElementById('subRows').value);
+  const sCols = parseInt(document.getElementById('subCols').value);
+  const { x: rx, y: ry, w: rw, h: rh } = state.region;
+  const pW = rw / pCols, pH = rh / pRows;
+  const sW = pW / sCols, sH = pH / sRows;
+  const pr = Math.floor(pi / pCols), pc = pi % pCols;
+  const sr = Math.floor(si / sCols), sc = si % sCols;
+  const cellX = Math.floor(rx + pc*pW + sc*sW);
+  const cellY = Math.floor(ry + pr*pH + sr*sH);
+  const cellW = Math.max(1, Math.floor(sW));
+  const cellH = Math.max(1, Math.floor(sH));
+
+  const inspector = document.getElementById('subzoneInspector');
+  const canvas = document.getElementById('subzoneInspectorCanvas');
+  const meta = document.getElementById('subzoneInspectorMeta');
+  const ictx = canvas.getContext('2d');
+  ictx.imageSmoothingEnabled = false;
+  ictx.clearRect(0, 0, canvas.width, canvas.height);
+  ictx.fillStyle = '#fff';
+  ictx.fillRect(0, 0, canvas.width, canvas.height);
+  ictx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, canvas.width, canvas.height);
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  ictx.strokeStyle = 'rgba(34,197,94,0.95)';
+  ictx.lineWidth = 2;
+  ictx.beginPath();
+  ictx.arc(centerX, centerY, Math.min(canvas.width, canvas.height) * 0.12, 0, Math.PI * 2);
+  ictx.stroke();
+  ictx.beginPath();
+  ictx.moveTo(centerX - 18, centerY); ictx.lineTo(centerX + 18, centerY);
+  ictx.moveTo(centerX, centerY - 18); ictx.lineTo(centerX, centerY + 18);
+  ictx.stroke();
+
+  const best = state.zoneBest?.[pi];
+  if (best && best.si === si) {
+    const bx = (best.cx - cellX) / cellW * canvas.width;
+    const by = (best.cy - cellY) / cellH * canvas.height;
+    ictx.strokeStyle = 'rgba(239,68,68,0.95)';
+    ictx.fillStyle = 'rgba(239,68,68,0.18)';
+    ictx.lineWidth = 2;
+    ictx.beginPath();
+    ictx.arc(bx, by, 18, 0, Math.PI * 2);
+    ictx.fill();
+    ictx.stroke();
+    ictx.beginPath();
+    ictx.moveTo(bx - 14, by); ictx.lineTo(bx + 14, by);
+    ictx.moveTo(bx, by - 14); ictx.lineTo(bx, by + 14);
+    ictx.stroke();
+  }
+
+  const score = state.scores?.[pi]?.[si] || 0;
+  const maxScore = Math.max(...(state.scores?.[pi] || [0]), 0.0001);
+  const normalized = Math.round(score / maxScore * 100);
+  const isDetected = state.digits?.[pi] === si;
+  meta.innerHTML = `
+    <strong>P${pi} / S${si} 확대</strong>
+    <span>상태: ${isDetected ? '선택됨' : '미선택'}</span>
+    <span>점수: ${Math.round(score)} (${normalized}%)</span>
+    <span>빨간 표시: 실제 감지 후보 / 초록 표시: 셀 중심</span>
+    <span>이미지 좌표: x ${cellX}~${cellX + cellW}, y ${cellY}~${cellY + cellH}</span>
+    <span>클릭한 셀은 해당 P 영역의 답으로 지정됩니다.</span>
+  `;
+  inspector.classList.add('show');
 }
 
 // ── 오버레이 그리기 ──────────────────────────────
@@ -1550,8 +1715,11 @@ function drawOverlay() {
 
         const sr = Math.floor(digit / sCols);
         const sc = digit % sCols;
-        const cx = srx + pc*pW + sc*sW + sW/2;
-        const cy = sry + pr*pH + sr*sH + sH/2;
+        const autoPoint = state.zoneBest?.[pi];
+        const manualPoint = state.manualMarks.find(m => m.pi === pi);
+        const sourcePoint = manualPoint || (autoPoint?.si === digit ? autoPoint : null);
+        const cx = sourcePoint ? sourcePoint.cx * scale : srx + pc*pW + sc*sW + sW/2;
+        const cy = sourcePoint ? sourcePoint.cy * scale : sry + pr*pH + sr*sH + sH/2;
         const r = Math.min(sW, sH) * 0.28;
 
         // 신뢰도에 따른 색상 (높으면 초록, 낮으면 노랑)
@@ -1620,11 +1788,11 @@ function loadImage(file) {
     const img = new Image();
     img.onload = () => {
       state.image = img;
+      state.selectedSubzone = null;
+      hideSubzoneInspector();
 
-      const maxW = 900;
-      const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
-      const cw = Math.round(img.naturalWidth * scale);
-      const ch = Math.round(img.naturalHeight * scale);
+      const cw = img.naturalWidth;
+      const ch = img.naturalHeight;
 
       mainCanvas.width = cw;
       mainCanvas.height = ch;
@@ -1633,6 +1801,7 @@ function loadImage(file) {
 
       ctx.drawImage(img, 0, 0, cw, ch);
       state.imageData = ctx.getImageData(0, 0, cw, ch);
+      applyZoom(Math.min(1, Math.max(0.35, 900 / cw)));
 
       document.getElementById('emptyState').style.display = 'none';
       document.getElementById('canvasWrap').style.display = 'inline-block';
@@ -1695,6 +1864,7 @@ function analyze() {
       state.scores = result.scores;
       state.candidates = result.candidates;
       state.zoneBest = result.zoneBest;
+      state.selectedSubzone = null;
 
       updateResultDisplay();
 
@@ -1723,6 +1893,7 @@ function resetAll() {
   state.candidates = null;
   state.zoneBest = null;
   state.manualMarks = [];
+  state.selectedSubzone = null;
 
   ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
   octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -1740,6 +1911,8 @@ function resetAll() {
   document.getElementById('fileInput').value = '';
   document.getElementById('subzonePanel').style.display = 'none';
   document.getElementById('subzoneGrid').innerHTML = '';
+  hideSubzoneInspector();
+  applyZoom(1);
 }
 
 // ============================================================
@@ -1923,6 +2096,9 @@ document.getElementById('resetBtn').addEventListener('click', resetAll);
 document.getElementById('generateBtn').addEventListener('click', generateEncoderImage);
 document.getElementById('downloadBtn').addEventListener('click', downloadEncoder);
 document.getElementById('copyCodeBtn').addEventListener('click', copyResultCode);
+document.getElementById('zoomInBtn').addEventListener('click', () => zoomBy(1.25));
+document.getElementById('zoomOutBtn').addEventListener('click', () => zoomBy(0.8));
+document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(1));
 
 // 토글
 function makeToggle(id, stateKey, callback) {
