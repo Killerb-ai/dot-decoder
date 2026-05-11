@@ -410,7 +410,7 @@
     <div class="header-title">점은닉 디코더</div>
     <div class="header-sub">문건 식별정보 삽입 기술 (KR 10-1989170) 기반 분석기</div>
   </div>
-  <div class="header-badge">v4.1 · 복사 기능 추가</div>
+  <div class="header-badge">v4.2 · 어두운 점 감지 보강</div>
 </div>
 
 <!-- Tabs -->
@@ -673,9 +673,9 @@
         <input type="range" id="dotSizeSlider" min="2" max="20" value="5">
         <div class="param-row">
           <span class="param-label">점 색상 투명도</span>
-          <span class="param-value" id="dotAlphaVal">100%</span>
+          <span class="param-value" id="dotAlphaVal">38%</span>
         </div>
-        <input type="range" id="dotAlphaSlider" min="10" max="255" value="255">
+        <input type="range" id="dotAlphaSlider" min="10" max="255" value="96">
       </div>
 
       <hr class="divider">
@@ -696,7 +696,7 @@
 <div id="helpTab" class="main" style="display:none; padding:24px; overflow-y:auto; flex-direction:column; gap:16px;">
   <div style="max-width:700px; margin:0 auto; width:100%">
     <h2 style="font-size:20px; margin-bottom:4px">📖 사용 가이드</h2>
-    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 v4.1 사용법</p>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 v4.2 사용법</p>
 
     <div class="info-box" style="margin-bottom:12px; font-size:12px">
       <strong style="color:var(--text)">🆕 v4.0 배경이상도 알고리즘 (Local Background Anomaly)</strong><br><br>
@@ -795,6 +795,77 @@ function percentile(arr, pct) {
   return sorted[Math.min(idx, sorted.length - 1)];
 }
 
+// ── 검정/진회색 점 후보 탐지 ─────────────────────
+// 로컬배경 이상도는 너무 어두운 픽셀을 텍스트로 제외하므로,
+// 작은 원형 연결성분은 별도 후보로 보강한다.
+function findCompactDarkCandidates(gray, w, h, maxGray, minArea = 8, maxArea = 500) {
+  const visited = new Uint8Array(w * h);
+  const candidates = [];
+
+  for (let sy = 0; sy < h; sy++) {
+    for (let sx = 0; sx < w; sx++) {
+      const startIdx = sy * w + sx;
+      if (visited[startIdx] || gray[startIdx] > maxGray) continue;
+
+      const queue = [startIdx];
+      visited[startIdx] = 1;
+      let qHead = 0;
+      let sumX = 0, sumY = 0, sumGray = 0;
+      let minX = sx, maxX = sx, minY = sy, maxY = sy;
+
+      while (qHead < queue.length) {
+        const idx = queue[qHead++];
+        const y = Math.floor(idx / w);
+        const x = idx % w;
+        sumX += x;
+        sumY += y;
+        sumGray += gray[idx];
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            const nIdx = ny * w + nx;
+            if (!visited[nIdx] && gray[nIdx] <= maxGray) {
+              visited[nIdx] = 1;
+              queue.push(nIdx);
+            }
+          }
+        }
+      }
+
+      const area = queue.length;
+      if (area < minArea || area > maxArea) continue;
+
+      const bboxW = maxX - minX + 1;
+      const bboxH = maxY - minY + 1;
+      const aspect = Math.max(bboxW, bboxH) / Math.max(1, Math.min(bboxW, bboxH));
+      const fill = area / Math.max(1, bboxW * bboxH);
+      const radius = Math.max(bboxW, bboxH) / 2;
+      const roundness = radius > 0 ? Math.min(1, area / (Math.PI * radius * radius)) : 0;
+
+      if (aspect > 2.2 || fill < 0.28 || roundness < 0.25) continue;
+
+      candidates.push({
+        cx: sumX / area,
+        cy: sumY / area,
+        area,
+        meanGray: sumGray / area,
+        circularity: roundness,
+        score: area * roundness,
+        bbox: [minX, minY, maxX, maxY]
+      });
+    }
+  }
+
+  return candidates;
+}
+
 // ── 로컬배경 이상도 메인 분석 함수 ──────────────
 // darkThresh: 텍스트 마스크 임계값 (이 값 미만은 텍스트로 제거)
 // bgPct: 배경 추정 백분위 (기본 88)
@@ -802,6 +873,7 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
   const gray = toGrayFloat(imageData);
+  const darkDotCandidates = findCompactDarkCandidates(gray, w, h, Math.max(40, darkThresh - 1));
 
   const pW = rw / P_COLS, pH = rh / P_ROWS;
   const sW = pW / S_COLS, sH = pH / S_ROWS;
@@ -857,6 +929,21 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
               }
             }
           }
+
+          for (const c of darkDotCandidates) {
+            if (c.cx < sx0 || c.cx >= sx1 || c.cy < sy0 || c.cy >= sy1) continue;
+            const centerX = (sx0 + sx1) / 2;
+            const centerY = (sy0 + sy1) / 2;
+            const dx = Math.abs(c.cx - centerX) / Math.max(1, sx1 - sx0);
+            const dy = Math.abs(c.cy - centerY) / Math.max(1, sy1 - sy0);
+            const centerWeight = Math.max(0.15, 1 - Math.hypot(dx, dy) * 1.8);
+            const dotBoost = Math.max(0, localBg - c.meanGray) * c.area * c.circularity * centerWeight;
+            score += dotBoost;
+            sumX += c.cx * dotBoost;
+            sumY += c.cy * dotBoost;
+            cnt += dotBoost;
+          }
+
           scores[si] = score;
           if (score > maxScore) {
             maxScore = score;
@@ -876,7 +963,7 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
     }
   }
 
-  return { digits, scores: allScores, candidates: [], zoneBest };
+  return { digits, scores: allScores, candidates: darkDotCandidates, zoneBest };
 }
 
 // ── [레거시 호환] BFS는 analyzeAnomaly로 대체됨 ──
