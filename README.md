@@ -6,8 +6,8 @@
 
 ## 🚀 바로 사용하기
 
-**[GitHub Pages 링크]** 를 통해 바로 사용 가능합니다.  
-→ `https://<your-username>.github.io/<repo-name>/`
+**[GitHub Pages 링크](https://killerb-ai.github.io/dot-decoder/)** 를 통해 바로 사용 가능합니다.
+→ `https://killerb-ai.github.io/dot-decoder/`
 
 또는 `index.html` 파일을 브라우저로 직접 열어 사용하세요 (서버 불필요).
 
@@ -27,7 +27,7 @@
 ```
 
 **구조 (기본 설정)**
-- 기본분할영역: **2행 × 4열 = 8개**
+- 기본분할영역: **4행 × 2열 = 8개**
 - 세부분할영역 (각 기본 안): **4열 × 2행 = 8개**
 - 코드: **8자리** (각 자릿수 0~7)
 
@@ -88,23 +88,10 @@
 ## 🛠️ GitHub Pages 배포 방법
 
 ```bash
-# 1. GitHub에서 새 저장소 생성 (예: dot-decoder)
-
-# 2. 로컬에서 초기화
-cd "점은닉 디코더"
-git init
-git add index.html README.md
-git commit -m "feat: 점은닉 디코더 초기 버전"
-
-# 3. 원격 연결 및 푸시
-git remote add origin https://github.com/<your-username>/dot-decoder.git
-git branch -M main
-git push -u origin main
-
-# 4. GitHub 저장소 Settings → Pages → Source: main 브랜치 선택 → Save
+# GitHub 저장소 Settings → Pages → Source: main 브랜치 선택 → Save
 ```
 
-배포 후 `https://<username>.github.io/dot-decoder/` 로 접속 가능
+배포 후 `https://killerb-ai.github.io/dot-decoder/` 로 접속 가능
 
 ---
 

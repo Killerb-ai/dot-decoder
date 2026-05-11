@@ -284,6 +284,11 @@
       font-family: monospace;
       letter-spacing: .1em;
     }
+    .result-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
 
     /* Info box */
     .info-box {
@@ -592,6 +597,9 @@
       <div style="text-align:right">
         <div class="result-label">분석된 문건 식별코드</div>
         <div class="result-full" id="resultCode">————————</div>
+        <div class="result-actions">
+          <button class="btn btn-secondary btn-sm" id="copyCodeBtn" type="button" disabled>복사</button>
+        </div>
       </div>
 
       <div class="code-display" id="codeDisplay">
@@ -1158,6 +1166,9 @@ function updateResultDisplay() {
   if (!state.digits) return;
   const code = state.digits.map(d => d >= 0 ? d : '?').join('');
   document.getElementById('resultCode').textContent = code;
+  const copyBtn = document.getElementById('copyCodeBtn');
+  copyBtn.disabled = code.includes('?');
+  copyBtn.textContent = '복사';
 
   const codeDisplay = document.getElementById('codeDisplay');
   codeDisplay.innerHTML = '';
@@ -1621,6 +1632,9 @@ function resetAll() {
   document.getElementById('emptyState').style.display = 'block';
   document.getElementById('canvasWrap').style.display = 'none';
   document.getElementById('resultCode').textContent = '————————';
+  const copyBtn = document.getElementById('copyCodeBtn');
+  copyBtn.disabled = true;
+  copyBtn.textContent = '복사';
   document.getElementById('codeDisplay').innerHTML = '';
   document.getElementById('statZones').textContent = '—';
   document.getElementById('statConf').textContent = '—';
@@ -1724,6 +1738,31 @@ function getDigitValues() {
   }).join('');
 }
 
+async function copyResultCode() {
+  const code = document.getElementById('resultCode').textContent.trim();
+  if (!/^\d{8}$/.test(code)) return;
+
+  try {
+    await navigator.clipboard.writeText(code);
+  } catch {
+    const temp = document.createElement('textarea');
+    temp.value = code;
+    temp.setAttribute('readonly', '');
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand('copy');
+    temp.remove();
+  }
+
+  const copyBtn = document.getElementById('copyCodeBtn');
+  copyBtn.textContent = '복사됨';
+  setTimeout(() => {
+    copyBtn.textContent = '복사';
+  }, 1200);
+}
+
 function buildDigitInputs() {
   const container = document.getElementById('digitInputs');
   container.innerHTML = '';
@@ -1785,6 +1824,7 @@ document.getElementById('analyzeBtn').addEventListener('click', analyze);
 document.getElementById('resetBtn').addEventListener('click', resetAll);
 document.getElementById('generateBtn').addEventListener('click', generateEncoderImage);
 document.getElementById('downloadBtn').addEventListener('click', downloadEncoder);
+document.getElementById('copyCodeBtn').addEventListener('click', copyResultCode);
 
 // 토글
 function makeToggle(id, stateKey, callback) {
