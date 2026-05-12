@@ -54,28 +54,8 @@
       color: var(--muted);
     }
 
-    /* Tabs */
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      background: var(--surface);
-      gap: 4px;
-    }
-    .tab {
-      padding: 10px 18px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--muted);
-      border-bottom: 2px solid transparent;
-      transition: all .2s;
-      user-select: none;
-    }
-    .tab:hover { color: var(--text); }
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
     /* Layout */
-    .main { display: flex; height: calc(100vh - 103px); overflow: hidden; }
+    .main { display: flex; height: calc(100vh - 65px); overflow: hidden; }
     .panel-left {
       width: 300px; min-width: 260px;
       background: var(--surface);
@@ -379,22 +359,7 @@
     }
     .toggle.on::after { left: 19px; }
 
-    /* Encoder tab */
-    #encoderTab { display: none; }
     #decoderTab { display: flex; }
-
-    .encoder-wrap { display: flex; height: 100%; overflow: hidden; }
-    .encoder-left {
-      width: 300px; background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 16px; overflow-y: auto;
-      display: flex; flex-direction: column; gap: 14px;
-    }
-    .encoder-right {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      background: #080b14; overflow: auto;
-    }
-    #encoderCanvas { background: #fff; display: block; }
 
     /* Density heatmap indicator */
     .density-grid { display: grid; gap: 2px; }
@@ -460,16 +425,8 @@
   <div class="header-logo">🔍</div>
   <div>
     <div class="header-title">점은닉 디코더</div>
-    <div class="header-sub">문건 식별정보 삽입 기술 (KR 10-1989170) 기반 분석기</div>
   </div>
-  <div class="header-badge">v4.4 · 원본해상도/줌/확대분석</div>
-</div>
-
-<!-- Tabs -->
-<div class="tabs">
-  <div class="tab active" data-tab="decoder">🔓 디코더 (스캔→번호)</div>
-  <div class="tab" data-tab="encoder">🔒 인코더 (번호→이미지)</div>
-  <div class="tab" data-tab="help">📖 사용법</div>
+  <div class="header-badge">v4.5 · 고신뢰 희소점 검출</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -482,9 +439,8 @@
       <div class="upload-zone" id="uploadZone">
         <div class="upload-icon">📄</div>
         <div class="upload-text">
-          <strong>파일 선택 또는 드래그앤드롭</strong><br>
-          스캔된 인쇄물 이미지<br>
-          PNG, JPG, BMP 지원
+          <strong>문서 이미지 업로드</strong><br>
+          PNG, JPG, BMP
         </div>
       </div>
       <input type="file" id="fileInput" accept="image/*">
@@ -494,11 +450,6 @@
 
     <div class="section">
       <div class="section-title">분석 영역 설정</div>
-      <div class="info-box">
-        전체 코드삽입영역(인쇄 콘텐츠 영역)을 지정합니다.<br>
-        <strong style="color:#a5b4fc">자동감지</strong> 사용 권장 — 정확도 낮으면 수동 조정
-      </div>
-
       <div class="toggle-row">
         <span style="font-size:12px; color:var(--muted)">자동 영역 감지</span>
         <div class="toggle on" id="autoDetectToggle"></div>
@@ -526,48 +477,14 @@
       </div>
     </div>
 
-    <hr class="divider">
-
-    <div class="section">
-      <div class="section-title">분할 파라미터 (고정)</div>
-      <div class="info-box" style="font-size:10px">
-        KR 10-1989170 특허 기준으로 고정:<br>
-        기본분할 <strong>4행 × 2열</strong> = 8영역<br>
-        세부분할 <strong>2행 × 4열</strong> = 8서브존 (자릿수 0~7)
-      </div>
-      <!-- hidden inputs for compatibility -->
-      <input type="hidden" id="primaryRows" value="4">
-      <input type="hidden" id="primaryCols" value="2">
-      <input type="hidden" id="subRows" value="2">
-      <input type="hidden" id="subCols" value="4">
-    </div>
-
-    <hr class="divider">
-
-    <div class="section">
-      <div class="section-title">감지 설정</div>
-      <div class="param-group">
-        <div class="param-row">
-          <span class="param-label">텍스트 마스크 임계값</span>
-          <span class="param-value" id="darkThreshVal">100</span>
-        </div>
-        <input type="range" id="darkThreshSlider" min="60" max="180" value="100">
-
-        <div class="param-row">
-          <span class="param-label">배경 백분위(%)</span>
-          <span class="param-value" id="bgPctVal">88</span>
-        </div>
-        <input type="range" id="bgPctSlider" min="75" max="98" value="88">
-
-        <!-- 호환성 유지용 hidden -->
-        <input type="hidden" id="brightThreshSlider" value="220">
-        <input type="hidden" id="minCircSlider" value="20">
-      </div>
-      <div class="info-box" style="font-size:10px; margin-top:4px">
-        💡 <strong>텍스트 마스크</strong>: 이 값보다 어두운 픽셀(텍스트)은 무시 (기본 100)<br>
-        💡 <strong>배경 백분위</strong>: 영역 내 밝기 기준 — 높을수록 더 밝은 배경 추정 (기본 88%)
-      </div>
-    </div>
+    <input type="hidden" id="primaryRows" value="4">
+    <input type="hidden" id="primaryCols" value="2">
+    <input type="hidden" id="subRows" value="2">
+    <input type="hidden" id="subCols" value="4">
+    <input type="hidden" id="darkThreshSlider" value="100">
+    <input type="hidden" id="bgPctSlider" value="88">
+    <input type="hidden" id="brightThreshSlider" value="220">
+    <input type="hidden" id="minCircSlider" value="20">
 
     <hr class="divider">
 
@@ -586,7 +503,7 @@
         <div class="toggle on" id="showDotsToggle"></div>
       </div>
       <div class="toggle-row">
-        <span style="font-size:12px; color:var(--muted)">이상도 히트맵</span>
+        <span style="font-size:12px; color:var(--muted)">점수 히트맵</span>
         <div class="toggle" id="showHeatToggle"></div>
       </div>
     </div>
@@ -594,24 +511,21 @@
     <hr class="divider">
 
     <div class="section">
-      <div class="section-title">🖱️ 수동 마킹 모드</div>
-      <div class="info-box">
-        자동 감지가 어려울 때: 이미지에서 점 위치를 <strong style="color:#fca5a5">직접 클릭</strong>하면 자동으로 그리드 좌표가 계산됩니다. 또는 하단 세부분할 그리드에서 셀을 클릭하세요.
-      </div>
+      <div class="section-title">수동 보정</div>
       <div class="toggle-row">
-        <span style="font-size:12px; color:var(--muted)">수동 클릭 마킹</span>
+        <span style="font-size:12px; color:var(--muted)">이미지 클릭</span>
         <div class="toggle" id="manualMarkToggle"></div>
       </div>
       <div class="manual-banner" id="manualBanner">
-        ✋ 마킹 모드 활성 — 이미지에서 점 위치를 클릭하세요
+        이미지에서 점 위치를 클릭하세요
       </div>
-      <button class="btn btn-secondary btn-sm" id="clearMarksBtn" style="margin-top:4px">🗑️ 마킹 초기화</button>
+      <button class="btn btn-secondary btn-sm" id="clearMarksBtn" style="margin-top:4px">보정 초기화</button>
     </div>
 
     <hr class="divider">
 
-    <div id="analyzeProgress">⏳ 분석 중...</div>
-    <button class="btn btn-primary" id="analyzeBtn">🔍 분석 시작</button>
+    <div id="analyzeProgress">분석 중...</div>
+    <button class="btn btn-primary" id="analyzeBtn">분석 시작</button>
     <button class="btn btn-secondary" id="resetBtn">↺ 초기화</button>
   </div>
 
@@ -625,9 +539,7 @@
         <span class="zoom-label" id="zoomLabel">100%</span>
       </div>
       <div id="emptyState" style="text-align:center; color:var(--muted)">
-        <div style="font-size:60px; margin-bottom:16px">🖨️</div>
-        <div style="font-size:16px; margin-bottom:8px">이미지를 업로드하세요</div>
-        <div style="font-size:12px">스캔된 인쇄물을 드래그하거나 파일을 선택하세요</div>
+        <div style="font-size:16px">이미지를 업로드하세요</div>
       </div>
       <div class="canvas-wrap" id="canvasWrap" style="display:none">
         <canvas id="mainCanvas"></canvas>
@@ -668,8 +580,7 @@
     <!-- ── 세부분할영역 확대 그리드 ── -->
     <div class="subzone-panel" id="subzonePanel" style="display:none">
       <div class="subzone-panel-header">
-        <span class="subzone-panel-title">🔬 세부분할영역 확대 분석</span>
-        <span class="subzone-panel-hint">각 셀을 클릭하면 해당 위치를 정답으로 지정</span>
+        <span class="subzone-panel-title">세부분할 확대</span>
         <span style="margin-left:auto; font-size:10px; color:var(--muted)">
           <span style="color:var(--green)">■</span> 감지됨
           <span style="color:var(--yellow); margin-left:6px">■</span> 차점수
@@ -685,124 +596,9 @@
 </div>
 
 
-<!-- ======================== ENCODER TAB ======================== -->
-<div id="encoderTab" class="main" style="display:none">
-  <div class="encoder-wrap">
-    <div class="encoder-left">
-      <div class="section">
-        <div class="section-title">문건 식별코드 입력</div>
-        <div class="info-box">
-          8자리 숫자를 입력하면 해당 위치에 은닉 점이 삽입된 테스트 이미지를 생성합니다.<br>
-          각 자릿수는 <strong style="color:#a5b4fc">0 ~ 7</strong> 범위입니다.
-        </div>
-        <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap">
-          <div id="digitInputs" style="display:flex; gap:4px">
-            <!-- 8 digit inputs -->
-          </div>
-        </div>
-        <div class="param-row">
-          <span class="param-label">프리셋:</span>
-          <select id="presetSelect" style="flex:1">
-            <option value="">선택...</option>
-            <option value="25163047">25163047 (특허 예시)</option>
-            <option value="00000000">00000000 (전부 0)</option>
-            <option value="77777777">77777777 (전부 7)</option>
-            <option value="01234567">01234567 (순서)</option>
-          </select>
-        </div>
-      </div>
-
-      <hr class="divider">
-
-      <div class="section">
-        <div class="section-title">이미지 설정</div>
-        <div class="param-row">
-          <span class="param-label">페이지 크기</span>
-          <select id="pageSizeSelect" style="width:120px">
-            <option value="595,842">A4 (595×842)</option>
-            <option value="612,792">Letter</option>
-            <option value="400,600">소형</option>
-          </select>
-        </div>
-        <div class="param-row">
-          <span class="param-label">텍스트 배경</span>
-          <div class="toggle on" id="showTextToggle"></div>
-        </div>
-        <div class="param-row">
-          <span class="param-label">점 크기 (px)</span>
-          <span class="param-value" id="dotSizeVal">5</span>
-        </div>
-        <input type="range" id="dotSizeSlider" min="2" max="20" value="5">
-        <div class="param-row">
-          <span class="param-label">점 색상 투명도</span>
-          <span class="param-value" id="dotAlphaVal">38%</span>
-        </div>
-        <input type="range" id="dotAlphaSlider" min="10" max="255" value="96">
-      </div>
-
-      <hr class="divider">
-
-      <button class="btn btn-primary" id="generateBtn">⚙️ 이미지 생성</button>
-      <button class="btn btn-secondary" id="downloadBtn" style="display:none">⬇️ PNG 다운로드</button>
-      <div class="alert alert-info" id="encInfo" style="font-size:11px; margin-top:4px">
-        생성된 이미지를 프린트 후 스캔하여 디코더 탭에서 업로드하면 테스트할 수 있습니다.
-      </div>
-    </div>
-    <div class="encoder-right">
-      <canvas id="encoderCanvas"></canvas>
-    </div>
-  </div>
-</div>
-
-<!-- ======================== HELP TAB ======================== -->
-<div id="helpTab" class="main" style="display:none; padding:24px; overflow-y:auto; flex-direction:column; gap:16px;">
-  <div style="max-width:700px; margin:0 auto; width:100%">
-    <h2 style="font-size:20px; margin-bottom:4px">📖 사용 가이드</h2>
-    <p style="color:var(--muted); font-size:13px; margin-bottom:20px">KR 10-1989170 특허 기반 점은닉 디코더 v4.4 사용법</p>
-
-    <div class="info-box" style="margin-bottom:12px; font-size:12px">
-      <strong style="color:var(--text)">🆕 v4.0 배경이상도 알고리즘 (Local Background Anomaly)</strong><br><br>
-      각 분할영역의 로컬 배경 대비 어두운 픽셀을 탐지:<br><br>
-      1. 그레이스케일 변환 후 <strong>기본분할 영역별 배경(88백분위)</strong> 추정<br>
-      2. <strong>BFS 연결성분 분석</strong>으로 인접 픽셀 그룹을 찾습니다<br>
-      3. <strong>이상도 = max(0, 로컬배경 - 픽셀)</strong> 계산 — 배경보다 어두울수록 높은 이상도<br>
-      4. 텍스트(<strong>100 미만</strong> 어두운 픽셀)는 노이즈 제거를 위해 이상도 계산에서 제외<br>
-      5. 8개 기본분할 각각에서 <strong>이상도 합계가 최고인 세부분할 위치</strong> = 해당 자릿수
-    </div>
-
-    <div class="info-box" style="margin-bottom:12px; font-size:12px">
-      <strong style="color:var(--text)">📌 특허 기술 원리</strong><br><br>
-      문건 식별코드(예: <code style="color:#a5b4fc">25163047</code>)는 아래 구조로 문건에 삽입됩니다:<br><br>
-      1. <strong>전체영역</strong>을 <strong>4행×2열 = 8개의 기본분할영역</strong>으로 나눕니다<br>
-      2. 각 기본분할영역을 <strong>2행×4열 = 8개의 세부분할영역</strong>으로 세분화합니다<br>
-      3. 코드의 k번째 자릿수 D[k] → 기본분할영역 k 안의 세부분할영역 D[k]번에 점을 찍습니다<br>
-      4. 총 8개의 점이 각 기본분할영역에 하나씩 삽입됩니다
-    </div>
-
-    <div class="info-box" style="margin-bottom:12px; font-size:12px">
-      <strong style="color:var(--text)">🔓 디코더 사용법</strong><br><br>
-      1. <strong>디코더 탭</strong>에서 스캔 이미지를 업로드합니다<br>
-      2. <strong>분석 시작</strong> 버튼을 클릭합니다<br>
-      3. 하단 <strong>세부분할영역 확대 그리드</strong>에서 각 P0~P7의 실제 점 위치를 확인합니다<br>
-      4. 잘못 감지된 경우 해당 셀을 클릭하여 수동으로 지정합니다<br>
-      5. 또는 이미지를 직접 클릭하는 수동 마킹 모드를 사용합니다
-    </div>
-
-    <div class="info-box" style="margin-bottom:12px; font-size:12px">
-      <strong style="color:var(--text)">⚙️ 파라미터 조정 팁</strong><br><br>
-      • <strong>어두운 임계값 (기본 130)</strong>: 올리면 텍스트 픽셀 더 제거 (점이 진하면 낮추기)<br>
-      • <strong>밝은 임계값 (기본 220)</strong>: 낮추면 순수 흰 배경 픽셀 제거<br>
-      • <strong>최소 원형도 (기본 0.20)</strong>: 낮추면 더 많은 후보 허용, 높이면 더 엄격히 걸러냄<br>
-      • 300 DPI 이상의 고해상도 스캔 권장<br>
-      • 감지가 실패할 경우 어두운 임계값을 낮추거나(110), 원형도를 낮춰보세요(0.15)
-    </div>
-  </div>
-</div>
-
-
 <script>
 // ============================================================
-//  CORE ALGORITHM v4.0 — 로컬배경 이상도 (Local BG Anomaly)
+//  CORE ALGORITHM v4.5 — 희소 중심점 검출 (Sparse Center Dot)
 //  특허 KR 10-1989170 기반
 //  고정 그리드: P_ROWS=4, P_COLS=2, S_ROWS=2, S_COLS=4
 // ============================================================
@@ -837,7 +633,7 @@ const ctx = mainCanvas.getContext('2d');
 const octx = overlayCanvas.getContext('2d');
 
 // ============================================================
-//  알고리즘: 로컬배경 이상도 (Local Background Anomaly)
+//  알고리즘: 희소 중심점 검출
 // ============================================================
 
 // ── 회색조 Float32Array 변환 ──────────────────────
@@ -930,6 +726,45 @@ function findCompactDarkCandidates(gray, w, h, maxGray, minArea = 1, maxArea = 1
   return candidates;
 }
 
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function sampleLocalStats(gray, w, h, cx, cy, radius = 16, darkGray = 170) {
+  let total = 0;
+  let dark = 0;
+  let sum = 0;
+  const x0 = Math.max(0, Math.floor(cx - radius));
+  const x1 = Math.min(w - 1, Math.ceil(cx + radius));
+  const y0 = Math.max(0, Math.floor(cy - radius));
+  const y1 = Math.min(h - 1, Math.ceil(cy + radius));
+
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (Math.hypot(x - cx, y - cy) > radius) continue;
+      const v = gray[y * w + x];
+      total++;
+      sum += v;
+      if (v < darkGray) dark++;
+    }
+  }
+
+  return {
+    mean: total ? sum / total : 255,
+    darkRatio: total ? dark / total : 0,
+  };
+}
+
+function estimateZoneBackground(gray, w, zx0, zy0, zx1, zy1, bgPct) {
+  const vals = [];
+  for (let y = zy0; y < zy1; y += 2) {
+    for (let x = zx0; x < zx1; x += 2) {
+      vals.push(gray[y * w + x]);
+    }
+  }
+  return percentile(vals, bgPct);
+}
+
 // ── 로컬배경 이상도 메인 분석 함수 ──────────────
 // darkThresh: 텍스트 마스크 임계값 (이 값 미만은 텍스트로 제거)
 // bgPct: 배경 추정 백분위 (기본 88)
@@ -937,7 +772,7 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
   const gray = toGrayFloat(imageData);
-  const darkDotCandidates = findCompactDarkCandidates(gray, w, h, 170);
+  const darkDotCandidates = findCompactDarkCandidates(gray, w, h, Math.max(170, darkThresh + 40), 1, 24);
 
   const pW = rw / P_COLS, pH = rh / P_ROWS;
   const sW = pW / S_COLS, sH = pH / S_ROWS;
@@ -956,14 +791,7 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
       const zy0 = Math.max(0, Math.floor(ry + pr * pH));
       const zy1 = Math.min(h, Math.ceil(ry + (pr + 1) * pH));
 
-      // 기본분할 영역 전체 픽셀로 배경 추정 (bgPct 백분위)
-      const zoneVals = [];
-      for (let y = zy0; y < zy1; y++) {
-        for (let x = zx0; x < zx1; x++) {
-          zoneVals.push(gray[y * w + x]);
-        }
-      }
-      const localBg = percentile(zoneVals, bgPct);
+      const localBg = estimateZoneBackground(gray, w, zx0, zy0, zx1, zy1, bgPct);
 
       // 서브존별 이상도 합산
       const scores = new Array(S_ROWS * S_COLS).fill(0);
@@ -981,45 +809,39 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
           const sy1 = Math.min(zy1, Math.ceil(zy0 + (sr + 1) * sH));
           const centerX = (sx0 + sx1) / 2;
           const centerY = (sy0 + sy1) / 2;
-          const centerRadius = Math.max(4, Math.min(sx1 - sx0, sy1 - sy0) * 0.16);
+          const centerRadius = Math.max(9, Math.min(sx1 - sx0, sy1 - sy0) * 0.26);
 
           let score = 0;
-          let sumX = 0, sumY = 0, cnt = 0;
-          for (let y = sy0; y < sy1; y++) {
-            for (let x = sx0; x < sx1; x++) {
-              const v = gray[y * w + x];
-              const centerDist = Math.hypot(x - centerX, y - centerY);
-              if (centerDist <= centerRadius && v < localBg - 10) {
-                const centerWeight = 1 - centerDist / centerRadius;
-                const darkScore = 0;
-                score += darkScore;
-                sumX += x * darkScore;
-                sumY += y * darkScore;
-                cnt += darkScore;
-              } else if (v >= darkThresh) {  // 텍스트(어두운 픽셀) 제외
-                const anom = localBg - v;
-                if (anom > 0) {
-                  const anomScore = 0;
-                  score += anomScore;
-                  sumX += x * anomScore; sumY += y * anomScore; cnt += anomScore;
-                }
-              }
-            }
-          }
 
           for (const c of darkDotCandidates) {
             if (c.cx < sx0 || c.cx >= sx1 || c.cy < sy0 || c.cy >= sy1) continue;
             const centerDist = Math.hypot(c.cx - centerX, c.cy - centerY);
-            if (centerDist > centerRadius * 2.2) continue;
-            const centerWeight = Math.max(0.05, 1 - centerDist / (centerRadius * 2.2));
-            const sizePenalty = 1 / Math.pow(Math.max(1, c.area), 1.25);
-            const dotBoost = Math.max(0, localBg - c.meanGray) * c.circularity * centerWeight * sizePenalty * 4;
-            score += dotBoost;
-            sumX += c.cx * dotBoost;
-            sumY += c.cy * dotBoost;
-            cnt += dotBoost;
-            if (!subBest[si] || dotBoost > subBest[si].score) {
-              subBest[si] = { cx: c.cx, cy: c.cy, score: dotBoost, area: c.area, meanGray: c.meanGray };
+            if (centerDist > centerRadius * 1.45) continue;
+
+            const local = sampleLocalStats(gray, w, h, c.cx, c.cy, 16, Math.max(170, darkThresh + 40));
+            const centerWeight = Math.exp(-Math.pow(centerDist / (centerRadius * 0.72), 2));
+            const darkness = clamp((localBg - c.meanGray) / 90, 0, 2.2);
+            const sizeScore = Math.exp(-Math.pow((c.area - 2) / 5, 2));
+            const cleanBackground = clamp((local.mean - 188) / 50, 0, 1);
+            const isolation = 1 / (1 + local.darkRatio * 18);
+            const dotScore = 1000
+              * darkness
+              * c.circularity
+              * sizeScore
+              * centerWeight
+              * (0.25 + 0.75 * cleanBackground)
+              * (0.25 + 0.75 * isolation);
+
+            if (dotScore > score) score = dotScore;
+            if (!subBest[si] || dotScore > subBest[si].score) {
+              subBest[si] = {
+                cx: c.cx,
+                cy: c.cy,
+                score: dotScore,
+                area: c.area,
+                meanGray: c.meanGray,
+                darkRatio: local.darkRatio
+              };
             }
           }
 
@@ -1027,8 +849,8 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
           if (score > maxScore) {
             maxScore = score;
             maxSi = si;
-            bestX = subBest[si]?.cx ?? (cnt > 0 ? sumX / cnt : (sx0 + sx1) / 2);
-            bestY = subBest[si]?.cy ?? (cnt > 0 ? sumY / cnt : (sy0 + sy1) / 2);
+            bestX = subBest[si]?.cx ?? (sx0 + sx1) / 2;
+            bestY = subBest[si]?.cy ?? (sy0 + sy1) / 2;
           }
         }
       }
@@ -1872,7 +1694,7 @@ function analyze() {
       const detected = result.digits.filter(d => d >= 0).length;
       document.getElementById('statZones').textContent = `${detected}/${P_ROWS*P_COLS}`;
       document.getElementById('statConf').textContent = `${conf}%`;
-      document.getElementById('statAlgo').textContent = '배경이상도';
+      document.getElementById('statAlgo').textContent = '희소점';
 
       drawOverlay();
       drawSubzoneGrid();
@@ -1915,100 +1737,6 @@ function resetAll() {
   applyZoom(1);
 }
 
-// ============================================================
-//  ENCODER (테스트 이미지 생성)
-// ============================================================
-function generateEncoderImage() {
-  const digits = [];
-  for (let i = 0; i < 8; i++) {
-    const v = parseInt(document.getElementById(`dInput${i}`).value);
-    digits.push(isNaN(v) ? 0 : Math.max(0, Math.min(7, v)));
-  }
-
-  const [pw, ph] = document.getElementById('pageSizeSelect').value.split(',').map(Number);
-  const showText = document.getElementById('showTextToggle').classList.contains('on');
-  const dotSize = parseInt(document.getElementById('dotSizeSlider').value);
-  const dotAlpha = parseInt(document.getElementById('dotAlphaSlider').value);
-
-  const encCanvas = document.getElementById('encoderCanvas');
-  encCanvas.width = pw;
-  encCanvas.height = ph;
-  const ec = encCanvas.getContext('2d');
-
-  ec.fillStyle = '#ffffff';
-  ec.fillRect(0, 0, pw, ph);
-
-  if (showText) {
-    ec.fillStyle = '#222222';
-    ec.font = '11px monospace';
-    const sampleTexts = [
-      '문서 제목: 기밀 보고서 A-2024',
-      '작성자: 홍길동  부서: 전략기획팀',
-      '날짜: 2024-01-15  등급: 대외비',
-      '',
-      '제1조 (목적) 이 문서는 조직 내 기밀 사항을',
-      '다루기 위한 내부 규정을 명시합니다.',
-      '',
-      '제2조 (적용범위) 모든 구성원에게 적용되며',
-      '외부 유출시 법적 책임이 발생합니다.',
-      '',
-      '1. 개요 및 배경 ......................................... 3',
-      '2. 현황 분석 ........................................... 7',
-      '3. 추진 전략 ........................................... 12',
-      '4. 기대 효과 ........................................... 18',
-      '',
-      '본 문서는 대외비로 분류되며 무단 복사,',
-      '전송, 배포를 금지합니다.',
-    ];
-    const marginX = 60, marginY = 80;
-    sampleTexts.forEach((line, i) => {
-      ec.fillText(line, marginX, marginY + i * 18);
-    });
-  }
-
-  const margin = 50;
-  const rx = margin, ry = margin;
-  const rw = pw - 2*margin, rh = ph - 2*margin;
-
-  // 디코더와 동일한 고정 그리드 사용
-  const pW = rw / P_COLS, pH = rh / P_ROWS;
-  const sW = pW / S_COLS, sH = pH / S_ROWS;
-
-  const alpha = (dotAlpha / 255).toFixed(2);
-  ec.fillStyle = `rgba(0,0,0,${alpha})`;
-
-  digits.forEach((digit, pi) => {
-    const pr = Math.floor(pi / P_COLS);
-    const pc = pi % P_COLS;
-    const sr = Math.floor(digit / S_COLS);
-    const sc = digit % S_COLS;
-
-    const dotX = rx + pc*pW + sc*sW + sW/2;
-    const dotY = ry + pr*pH + sr*sH + sH/2;
-
-    ec.beginPath();
-    ec.arc(dotX, dotY, dotSize, 0, Math.PI*2);
-    ec.fill();
-  });
-
-  document.getElementById('downloadBtn').style.display = 'block';
-}
-
-function downloadEncoder() {
-  const encCanvas = document.getElementById('encoderCanvas');
-  const a = document.createElement('a');
-  a.download = `encoded_doc_${getDigitValues()}.png`;
-  a.href = encCanvas.toDataURL('image/png');
-  a.click();
-}
-
-function getDigitValues() {
-  return Array.from({length:8}, (_,i) => {
-    const v = parseInt(document.getElementById(`dInput${i}`)?.value);
-    return isNaN(v) ? 0 : Math.max(0, Math.min(7, v));
-  }).join('');
-}
-
 async function copyResultCode() {
   const code = document.getElementById('resultCode').textContent.trim();
   if (!/^\d{8}$/.test(code)) return;
@@ -2034,41 +1762,9 @@ async function copyResultCode() {
   }, 1200);
 }
 
-function buildDigitInputs() {
-  const container = document.getElementById('digitInputs');
-  container.innerHTML = '';
-  for (let i = 0; i < 8; i++) {
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px';
-    const lbl = document.createElement('div');
-    lbl.textContent = `P${i}`;
-    lbl.style.cssText = 'font-size:9px;color:var(--muted)';
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.id = `dInput${i}`;
-    inp.min = 0; inp.max = 7; inp.value = 0;
-    inp.style.cssText = 'width:40px;text-align:center;padding:6px 4px;font-size:14px;font-weight:700;';
-    wrap.appendChild(lbl);
-    wrap.appendChild(inp);
-    container.appendChild(wrap);
-  }
-}
-
 // ============================================================
 //  UI 이벤트
 // ============================================================
-
-// 탭 전환
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const name = tab.dataset.tab;
-    document.getElementById('decoderTab').style.display = name === 'decoder' ? 'flex' : 'none';
-    document.getElementById('encoderTab').style.display = name === 'encoder' ? 'flex' : 'none';
-    document.getElementById('helpTab').style.display = name === 'help' ? 'flex' : 'none';
-  });
-});
 
 // 업로드
 document.getElementById('uploadZone').addEventListener('click', () =>
@@ -2093,8 +1789,6 @@ document.getElementById('canvasArea').addEventListener('drop', e => {
 // 버튼
 document.getElementById('analyzeBtn').addEventListener('click', analyze);
 document.getElementById('resetBtn').addEventListener('click', resetAll);
-document.getElementById('generateBtn').addEventListener('click', generateEncoderImage);
-document.getElementById('downloadBtn').addEventListener('click', downloadEncoder);
 document.getElementById('copyCodeBtn').addEventListener('click', copyResultCode);
 document.getElementById('zoomInBtn').addEventListener('click', () => zoomBy(1.25));
 document.getElementById('zoomOutBtn').addEventListener('click', () => zoomBy(0.8));
@@ -2121,7 +1815,6 @@ makeToggle('showPrimaryToggle', 'showPrimary', drawOverlay);
 makeToggle('showSubToggle', 'showSub', drawOverlay);
 makeToggle('showDotsToggle', 'showDots', drawOverlay);
 makeToggle('showHeatToggle', 'showHeat', drawOverlay);
-makeToggle('showTextToggle', null, null);
 
 // 수동 마킹 토글
 makeToggle('manualMarkToggle', 'manualMode', () => {
@@ -2165,10 +1858,6 @@ function bindSlider(sliderId, valueId, suffix = '') {
 }
 bindSlider('darkThreshSlider', 'darkThreshVal');
 bindSlider('bgPctSlider', 'bgPctVal');
-bindSlider('dotSizeSlider', 'dotSizeVal');
-document.getElementById('dotAlphaSlider').addEventListener('input', function() {
-  document.getElementById('dotAlphaVal').textContent = Math.round(this.value/255*100) + '%';
-});
 
 // 수동 영역 필드
 ['regX','regY','regW','regH'].forEach(id => {
@@ -2177,18 +1866,6 @@ document.getElementById('dotAlphaSlider').addEventListener('input', function() {
   });
 });
 
-// 프리셋 선택
-document.getElementById('presetSelect').addEventListener('change', function() {
-  if (!this.value) return;
-  const digits = this.value.split('').map(Number);
-  digits.forEach((d, i) => {
-    const inp = document.getElementById(`dInput${i}`);
-    if (inp) inp.value = d;
-  });
-});
-
-// ── 초기화 ──────────────────────────────────────
-buildDigitInputs();
 </script>
 </body>
 </html>
