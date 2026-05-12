@@ -426,7 +426,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v4.5 · 고신뢰 희소점 검출</div>
+  <div class="header-badge">v4.6 · 보강 희소점 검출</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -505,6 +505,10 @@
       <div class="toggle-row">
         <span style="font-size:12px; color:var(--muted)">점수 히트맵</span>
         <div class="toggle" id="showHeatToggle"></div>
+      </div>
+      <div class="toggle-row">
+        <span style="font-size:12px; color:var(--muted)">세부분할 확대</span>
+        <div class="toggle" id="showSubzonePanelToggle"></div>
       </div>
     </div>
 
@@ -598,7 +602,7 @@
 
 <script>
 // ============================================================
-//  CORE ALGORITHM v4.5 — 희소 중심점 검출 (Sparse Center Dot)
+//  CORE ALGORITHM v4.6 — 보강 희소 중심점 검출 (Sparse Center Dot)
 //  특허 KR 10-1989170 기반
 //  고정 그리드: P_ROWS=4, P_COLS=2, S_ROWS=2, S_COLS=4
 // ============================================================
@@ -621,6 +625,7 @@ let state = {
   showSub: true,
   showDots: true,
   showHeat: false,
+  showSubzonePanel: false,
   manualMode: false,
   manualMarks: [],
   selectedSubzone: null,
@@ -765,14 +770,52 @@ function estimateZoneBackground(gray, w, zx0, zy0, zx1, zy1, bgPct) {
   return percentile(vals, bgPct);
 }
 
-// ── 로컬배경 이상도 메인 분석 함수 ──────────────
-// darkThresh: 텍스트 마스크 임계값 (이 값 미만은 텍스트로 제거)
-// bgPct: 배경 추정 백분위 (기본 88)
-function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
+const SPARSE_BASE_OPTIONS = {
+  maxGray: 170,
+  maxArea: 24,
+  radiusScale: 0.26,
+  windowScale: 1.45,
+  centerSigma: 0.72,
+  darkDivisor: 90,
+  darkCap: 2.2,
+  darkPower: 1,
+  areaCenter: 2,
+  areaSigma: 5,
+  circularityPower: 1,
+  cleanBase: 188,
+  cleanSpan: 50,
+  cleanFloor: 0.25,
+  isolationScale: 18,
+  isolationFloor: 0.25,
+  localRadius: 16,
+};
+
+const SPARSE_FAINT_OPTIONS = {
+  maxGray: 205,
+  maxArea: 30,
+  radiusScale: 0.26,
+  windowScale: 1.25,
+  centerSigma: 0.6,
+  darkDivisor: 80,
+  darkCap: 2.6,
+  darkPower: 1.35,
+  areaCenter: 2,
+  areaSigma: 4,
+  circularityPower: 0.45,
+  cleanBase: 188,
+  cleanSpan: 50,
+  cleanFloor: 0.3,
+  isolationScale: 18,
+  isolationFloor: 0.25,
+  localRadius: 16,
+};
+
+function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
   const gray = toGrayFloat(imageData);
-  const darkDotCandidates = findCompactDarkCandidates(gray, w, h, Math.max(170, darkThresh + 40), 1, 24);
+  const candidateMaxGray = Math.max(options.maxGray, darkThresh + 40);
+  const darkDotCandidates = findCompactDarkCandidates(gray, w, h, candidateMaxGray, 1, options.maxArea);
 
   const pW = rw / P_COLS, pH = rh / P_ROWS;
   const sW = pW / S_COLS, sH = pH / S_ROWS;
@@ -809,28 +852,32 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
           const sy1 = Math.min(zy1, Math.ceil(zy0 + (sr + 1) * sH));
           const centerX = (sx0 + sx1) / 2;
           const centerY = (sy0 + sy1) / 2;
-          const centerRadius = Math.max(9, Math.min(sx1 - sx0, sy1 - sy0) * 0.26);
+          const centerRadius = Math.max(9, Math.min(sx1 - sx0, sy1 - sy0) * options.radiusScale);
 
           let score = 0;
 
           for (const c of darkDotCandidates) {
             if (c.cx < sx0 || c.cx >= sx1 || c.cy < sy0 || c.cy >= sy1) continue;
             const centerDist = Math.hypot(c.cx - centerX, c.cy - centerY);
-            if (centerDist > centerRadius * 1.45) continue;
+            if (centerDist > centerRadius * options.windowScale) continue;
 
-            const local = sampleLocalStats(gray, w, h, c.cx, c.cy, 16, Math.max(170, darkThresh + 40));
-            const centerWeight = Math.exp(-Math.pow(centerDist / (centerRadius * 0.72), 2));
-            const darkness = clamp((localBg - c.meanGray) / 90, 0, 2.2);
-            const sizeScore = Math.exp(-Math.pow((c.area - 2) / 5, 2));
-            const cleanBackground = clamp((local.mean - 188) / 50, 0, 1);
-            const isolation = 1 / (1 + local.darkRatio * 18);
+            const local = sampleLocalStats(gray, w, h, c.cx, c.cy, options.localRadius, candidateMaxGray);
+            const centerWeight = Math.exp(-Math.pow(centerDist / (centerRadius * options.centerSigma), 2));
+            const darkness = Math.pow(
+              clamp((localBg - c.meanGray) / options.darkDivisor, 0, options.darkCap),
+              options.darkPower
+            );
+            const sizeScore = Math.exp(-Math.pow((c.area - options.areaCenter) / options.areaSigma, 2));
+            const circularityScore = Math.pow(c.circularity, options.circularityPower);
+            const cleanBackground = clamp((local.mean - options.cleanBase) / options.cleanSpan, 0, 1);
+            const isolation = 1 / (1 + local.darkRatio * options.isolationScale);
             const dotScore = 1000
               * darkness
-              * c.circularity
+              * circularityScore
               * sizeScore
               * centerWeight
-              * (0.25 + 0.75 * cleanBackground)
-              * (0.25 + 0.75 * isolation);
+              * (options.cleanFloor + (1 - options.cleanFloor) * cleanBackground)
+              * (options.isolationFloor + (1 - options.isolationFloor) * isolation);
 
             if (dotScore > score) score = dotScore;
             if (!subBest[si] || dotScore > subBest[si].score) {
@@ -865,6 +912,25 @@ function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
   }
 
   return { digits, scores: allScores, candidates: darkDotCandidates, zoneBest };
+}
+
+// ── 희소 중심점 메인 분석 함수 ──────────────
+// 기본 패스가 낮은 신뢰도를 보일 때만 더 연한 점 후보를 보는 보강 패스를 선택한다.
+function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
+  const base = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_BASE_OPTIONS);
+  const faint = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_FAINT_OPTIONS);
+  const baseConf = calcConfidence(base.scores, base.digits);
+  const faintConf = calcConfidence(faint.scores, faint.digits);
+
+  const useFaint = baseConf < 80 && faintConf >= baseConf + 8;
+  const selected = useFaint ? faint : base;
+  selected.mode = useFaint ? '희소점+' : '희소점';
+  selected.confidence = useFaint ? faintConf : baseConf;
+  selected.alternates = {
+    base: { digits: base.digits, confidence: baseConf },
+    faint: { digits: faint.digits, confidence: faintConf }
+  };
+  return selected;
 }
 
 // ── [레거시 호환] BFS는 analyzeAnomaly로 대체됨 ──
@@ -1189,7 +1255,7 @@ function drawSubzoneGrid() {
   const panel = document.getElementById('subzonePanel');
   if (!container) return;
 
-  if (!state.imageData || !state.region || !state.scores) {
+  if (!state.showSubzonePanel || !state.imageData || !state.region || !state.scores) {
     panel.style.display = 'none';
     hideSubzoneInspector();
     return;
@@ -1690,11 +1756,11 @@ function analyze() {
 
       updateResultDisplay();
 
-      const conf = calcConfidence(result.scores, result.digits);
+      const conf = result.confidence ?? calcConfidence(result.scores, result.digits);
       const detected = result.digits.filter(d => d >= 0).length;
       document.getElementById('statZones').textContent = `${detected}/${P_ROWS*P_COLS}`;
       document.getElementById('statConf').textContent = `${conf}%`;
-      document.getElementById('statAlgo').textContent = '희소점';
+      document.getElementById('statAlgo').textContent = result.mode || '희소점';
 
       drawOverlay();
       drawSubzoneGrid();
@@ -1815,6 +1881,7 @@ makeToggle('showPrimaryToggle', 'showPrimary', drawOverlay);
 makeToggle('showSubToggle', 'showSub', drawOverlay);
 makeToggle('showDotsToggle', 'showDots', drawOverlay);
 makeToggle('showHeatToggle', 'showHeat', drawOverlay);
+makeToggle('showSubzonePanelToggle', 'showSubzonePanel', drawSubzoneGrid);
 
 // 수동 마킹 토글
 makeToggle('manualMarkToggle', 'manualMode', () => {
