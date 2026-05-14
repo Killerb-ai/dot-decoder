@@ -426,7 +426,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v4.6 · 보강 희소점 검출</div>
+  <div class="header-badge">v4.7 · 초희미 고립점 보강</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -602,7 +602,7 @@
 
 <script>
 // ============================================================
-//  CORE ALGORITHM v4.6 — 보강 희소 중심점 검출 (Sparse Center Dot)
+//  CORE ALGORITHM v4.7 — 보강 희소 중심점 검출 (Sparse Center Dot)
 //  특허 KR 10-1989170 기반
 //  고정 그리드: P_ROWS=4, P_COLS=2, S_ROWS=2, S_COLS=4
 // ============================================================
@@ -810,6 +810,28 @@ const SPARSE_FAINT_OPTIONS = {
   localRadius: 16,
 };
 
+const ULTRA_FAINT_OPTIONS = {
+  maxGray: 215,
+  maxArea: 8,
+  radiusScale: 0.26,
+  windowScale: 1.55,
+  centerSigma: 0.95,
+  targetGray: 203,
+  graySigma: 11,
+  areaCenter: 1.8,
+  areaSigma: 2,
+  circularityPower: 0.5,
+  cleanBase: 244,
+  cleanSpan: 10,
+  cleanFloor: 0.25,
+  isolationScale: 70,
+  isolationFloor: 0.2,
+  localRadius: 16,
+  minOverrideScore: 240,
+  strongOverrideScore: 330,
+  minOverrideRatio: 2.2,
+};
+
 function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
@@ -914,21 +936,202 @@ function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
   return { digits, scores: allScores, candidates: darkDotCandidates, zoneBest };
 }
 
+function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS) {
+  const w = imageData.width, h = imageData.height;
+  const { x: rx, y: ry, w: rw, h: rh } = region;
+  const gray = toGrayFloat(imageData);
+  const candidates = findCompactDarkCandidates(gray, w, h, options.maxGray, 1, options.maxArea);
+
+  const pW = rw / P_COLS, pH = rh / P_ROWS;
+  const sW = pW / S_COLS, sH = pH / S_ROWS;
+
+  const allScores = [];
+  const digits = [];
+  const zoneBest = {};
+
+  for (let pr = 0; pr < P_ROWS; pr++) {
+    for (let pc = 0; pc < P_COLS; pc++) {
+      const pi = pr * P_COLS + pc;
+      const zx0 = rx + pc * pW;
+      const zy0 = ry + pr * pH;
+      const scores = new Array(S_ROWS * S_COLS).fill(0);
+      const subBest = new Array(S_ROWS * S_COLS).fill(null);
+      let maxScore = -1, maxSi = 0;
+      let bestX = zx0 + pW / 2;
+      let bestY = zy0 + pH / 2;
+
+      for (let sr = 0; sr < S_ROWS; sr++) {
+        for (let sc = 0; sc < S_COLS; sc++) {
+          const si = sr * S_COLS + sc;
+          const sx0 = zx0 + sc * sW;
+          const sx1 = zx0 + (sc + 1) * sW;
+          const sy0 = zy0 + sr * sH;
+          const sy1 = zy0 + (sr + 1) * sH;
+          const centerX = (sx0 + sx1) / 2;
+          const centerY = (sy0 + sy1) / 2;
+          const centerRadius = Math.max(9, Math.min(sW, sH) * options.radiusScale);
+
+          let score = 0;
+
+          for (const c of candidates) {
+            if (c.cx < sx0 || c.cx >= sx1 || c.cy < sy0 || c.cy >= sy1) continue;
+            const centerDist = Math.hypot(c.cx - centerX, c.cy - centerY);
+            if (centerDist > centerRadius * options.windowScale) continue;
+
+            const local = sampleLocalStats(gray, w, h, c.cx, c.cy, options.localRadius, options.maxGray);
+            const grayWeight = Math.exp(-Math.pow((c.meanGray - options.targetGray) / options.graySigma, 2));
+            const centerWeight = Math.exp(-Math.pow(centerDist / (centerRadius * options.centerSigma), 2));
+            const sizeScore = Math.exp(-Math.pow((c.area - options.areaCenter) / options.areaSigma, 2));
+            const circularityScore = Math.pow(c.circularity, options.circularityPower);
+            const cleanBackground = clamp((local.mean - options.cleanBase) / options.cleanSpan, 0, 1);
+            const isolation = Math.exp(-local.darkRatio * options.isolationScale);
+            const dotScore = 1000
+              * grayWeight
+              * circularityScore
+              * sizeScore
+              * centerWeight
+              * (options.cleanFloor + (1 - options.cleanFloor) * cleanBackground)
+              * (options.isolationFloor + (1 - options.isolationFloor) * isolation);
+
+            if (dotScore > score) score = dotScore;
+            if (!subBest[si] || dotScore > subBest[si].score) {
+              subBest[si] = {
+                cx: c.cx,
+                cy: c.cy,
+                score: dotScore,
+                area: c.area,
+                meanGray: c.meanGray,
+                darkRatio: local.darkRatio
+              };
+            }
+          }
+
+          scores[si] = score;
+          if (score > maxScore) {
+            maxScore = score;
+            maxSi = si;
+            bestX = subBest[si]?.cx ?? (sx0 + sx1) / 2;
+            bestY = subBest[si]?.cy ?? (sy0 + sy1) / 2;
+          }
+        }
+      }
+
+      allScores.push(scores);
+      digits.push(maxScore > 0 ? maxSi : -1);
+      zoneBest[pi] = {
+        cx: Math.round(bestX), cy: Math.round(bestY),
+        pi, si: maxSi, score: maxScore
+      };
+    }
+  }
+
+  return { digits, scores: allScores, candidates, zoneBest };
+}
+
+function getScoreStats(scores) {
+  const order = scores.map((score, idx) => ({ score, idx }))
+    .sort((a, b) => b.score - a.score);
+  const best = order[0] ?? { score: 0, idx: -1 };
+  const second = order[1] ?? { score: 0, idx: -1 };
+  const ratio = second.score > 0
+    ? best.score / second.score
+    : (best.score > 0 ? 10 : 0);
+  return {
+    digit: best.score > 0 ? best.idx : -1,
+    best: best.score,
+    second: second.score,
+    ratio,
+  };
+}
+
+function combineAnalysisPasses(base, faint, ultra) {
+  const digits = [];
+  const scores = [];
+  const zoneBest = {};
+  const sources = [];
+  let usedFaint = 0;
+  let usedUltra = 0;
+
+  for (let pi = 0; pi < P_ROWS * P_COLS; pi++) {
+    const baseStats = getScoreStats(base.scores[pi] || []);
+    const faintStats = getScoreStats(faint.scores[pi] || []);
+    const ultraStats = getScoreStats(ultra.scores[pi] || []);
+
+    let selected = base;
+    let selectedStats = baseStats;
+    let source = 'base';
+
+    const faintIsClearer =
+      faintStats.best > 0 &&
+      (
+        baseStats.best <= 0 ||
+        faintStats.ratio >= baseStats.ratio + 1.2 ||
+        (baseStats.ratio < 1.35 && faintStats.ratio >= baseStats.ratio * 1.15) ||
+        (baseStats.best < 40 && faintStats.best > baseStats.best * 8)
+      );
+
+    if (faintIsClearer) {
+      selected = faint;
+      selectedStats = faintStats;
+      source = 'faint';
+      usedFaint++;
+    }
+
+    const conventionalDisagree = baseStats.digit !== faintStats.digit;
+    const conventionalWeak = selectedStats.ratio < 2 || selectedStats.best < 160;
+    const ultraIsClean =
+      ultraStats.best >= ULTRA_FAINT_OPTIONS.minOverrideScore &&
+      ultraStats.ratio >= ULTRA_FAINT_OPTIONS.minOverrideRatio;
+    const ultraIsStrong = ultraStats.best >= ULTRA_FAINT_OPTIONS.strongOverrideScore;
+
+    if (ultraIsClean && (conventionalDisagree || conventionalWeak || ultraIsStrong)) {
+      selected = ultra;
+      selectedStats = ultraStats;
+      source = 'ultra';
+      usedUltra++;
+    }
+
+    digits.push(selectedStats.digit);
+    scores.push(selected.scores[pi]);
+    zoneBest[pi] = {
+      ...(selected.zoneBest[pi] || {}),
+      pi,
+      si: selectedStats.digit,
+      source
+    };
+    sources.push(source);
+  }
+
+  return {
+    digits,
+    scores,
+    candidates: [...base.candidates, ...faint.candidates, ...ultra.candidates],
+    zoneBest,
+    sources,
+    usedFaint,
+    usedUltra
+  };
+}
+
 // ── 희소 중심점 메인 분석 함수 ──────────────
-// 기본 패스가 낮은 신뢰도를 보일 때만 더 연한 점 후보를 보는 보강 패스를 선택한다.
+// 기본/흐린점/초희미 고립점 패스를 영역별로 앙상블한다.
 function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
   const base = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_BASE_OPTIONS);
   const faint = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_FAINT_OPTIONS);
+  const ultra = analyzeUltraFaintPass(imageData, region, ULTRA_FAINT_OPTIONS);
   const baseConf = calcConfidence(base.scores, base.digits);
   const faintConf = calcConfidence(faint.scores, faint.digits);
-
-  const useFaint = baseConf < 80 && faintConf >= baseConf + 8;
-  const selected = useFaint ? faint : base;
-  selected.mode = useFaint ? '희소점+' : '희소점';
-  selected.confidence = useFaint ? faintConf : baseConf;
+  const ultraConf = calcConfidence(ultra.scores, ultra.digits);
+  const selected = combineAnalysisPasses(base, faint, ultra);
+  selected.confidence = calcConfidence(selected.scores, selected.digits);
+  selected.mode = selected.usedUltra > 0
+    ? '희소점+초희미'
+    : (selected.usedFaint > 0 ? '희소점 앙상블' : '희소점');
   selected.alternates = {
     base: { digits: base.digits, confidence: baseConf },
-    faint: { digits: faint.digits, confidence: faintConf }
+    faint: { digits: faint.digits, confidence: faintConf },
+    ultra: { digits: ultra.digits, confidence: ultraConf },
+    sources: selected.sources
   };
   return selected;
 }
@@ -1113,11 +1316,14 @@ function calcConfidence(scores, digits) {
     if (chosen < 0 || !s || s.length === 0) continue;
     const sorted = [...s].sort((a,b) => b-a);
     if (sorted[0] <= 0) continue;
-    // 1위와 2위의 비율
+    // 1위/2위 비율만 보면 단일 먼지 후보를 과신할 수 있어 절대 점수와 격차도 함께 본다.
     const ratio = sorted.length > 1 && sorted[1] > 0
       ? sorted[0] / sorted[1]
       : (sorted[0] > 0 ? 10 : 0);
-    totalConf += Math.min(ratio / 4, 1);
+    const ratioConf = clamp((ratio - 1) / 3, 0, 1);
+    const absoluteConf = clamp(sorted[0] / 280, 0, 1);
+    const marginConf = clamp((sorted[0] - (sorted[1] || 0)) / 220, 0, 1);
+    totalConf += 0.35 * ratioConf + 0.4 * absoluteConf + 0.25 * marginConf;
     validCount++;
   }
   if (validCount === 0) return 0;
