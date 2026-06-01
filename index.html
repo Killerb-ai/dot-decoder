@@ -663,6 +663,23 @@ function percentile(arr, pct) {
 // ── 검정/진회색 점 후보 탐지 ─────────────────────
 // 로컬배경 이상도는 너무 어두운 픽셀을 텍스트로 제외하므로,
 // 작은 원형 연결성분은 별도 후보로 보강한다.
+// ── 표선(긴 수평/수직 런) 마스크: 표 격자선 오검출 억제 (v4.8) ──
+let _lineMaskCache = null, _lmW = 0, _lmH = 0;
+function buildLineMask(gray, w, h, darkThr, L) {
+  const dark = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) dark[i] = gray[i] < darkThr ? 1 : 0;
+  const line = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) { let run = 0, xs = 0; for (let x = 0; x <= w; x++) { const d = x < w && dark[y*w+x]; if (d) { if (run===0) xs=x; run++; } else { if (run>=L) for (let k=xs;k<x;k++) line[y*w+k]=1; run=0; } } }
+  for (let x = 0; x < w; x++) { let run = 0, ys = 0; for (let y = 0; y <= h; y++) { const d = y < h && dark[y*w+x]; if (d) { if (run===0) ys=y; run++; } else { if (run>=L) for (let k=ys;k<y;k++) line[k*w+x]=1; run=0; } } }
+  return line;
+}
+function onLine(x, y) {
+  if (!_lineMaskCache) return false;
+  const xi = Math.round(x), yi = Math.round(y);
+  if (xi < 0 || yi < 0 || xi >= _lmW || yi >= _lmH) return false;
+  return _lineMaskCache[yi*_lmW + xi] === 1;
+}
+
 function findCompactDarkCandidates(gray, w, h, maxGray, minArea = 1, maxArea = 120) {
   const visited = new Uint8Array(w * h);
   const candidates = [];
@@ -992,7 +1009,7 @@ function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
             const circularityScore = Math.pow(c.circularity, options.circularityPower);
             const cleanBackground = clamp((local.mean - options.cleanBase) / options.cleanSpan, 0, 1);
             const isolation = 1 / (1 + local.darkRatio * options.isolationScale);
-            const dotScore = 1000
+            let dotScore = 1000
               * darkness
               * circularityScore
               * sizeScore
@@ -1000,6 +1017,7 @@ function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
               * (options.cleanFloor + (1 - options.cleanFloor) * cleanBackground)
               * (options.isolationFloor + (1 - options.isolationFloor) * isolation);
 
+            if (onLine(c.cx, c.cy)) dotScore *= 0.20;
             if (dotScore > score) score = dotScore;
             if (!subBest[si] || dotScore > subBest[si].score) {
               subBest[si] = {
@@ -1084,7 +1102,7 @@ function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS)
             const circularityScore = Math.pow(c.circularity, options.circularityPower);
             const cleanBackground = clamp((local.mean - options.cleanBase) / options.cleanSpan, 0, 1);
             const isolation = Math.exp(-local.darkRatio * options.isolationScale);
-            const dotScore = 1000
+            let dotScore = 1000
               * grayWeight
               * circularityScore
               * sizeScore
@@ -1092,6 +1110,7 @@ function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS)
               * (options.cleanFloor + (1 - options.cleanFloor) * cleanBackground)
               * (options.isolationFloor + (1 - options.isolationFloor) * isolation);
 
+            if (onLine(c.cx, c.cy)) dotScore *= 0.20;
             if (dotScore > score) score = dotScore;
             if (!subBest[si] || dotScore > subBest[si].score) {
               subBest[si] = {
@@ -1176,7 +1195,7 @@ function analyzeLineBoundPass(imageData, region, options = LINE_BOUND_OPTIONS) {
             const aspectScore = 0.35 + 0.65 * Math.exp(-Math.pow((Math.max(1, c.aspect) - 1) / options.aspectSigma, 2));
             const cleanBackground = clamp((local.mean - options.cleanBase) / options.cleanSpan, 0, 1);
             const isolation = 1 / (1 + local.darkRatio * options.isolationScale);
-            const dotScore = 1000
+            let dotScore = 1000
               * grayWeight
               * sizeScore
               * aspectScore
@@ -1184,6 +1203,7 @@ function analyzeLineBoundPass(imageData, region, options = LINE_BOUND_OPTIONS) {
               * (options.cleanFloor + (1 - options.cleanFloor) * cleanBackground)
               * (options.isolationFloor + (1 - options.isolationFloor) * isolation);
 
+            if (onLine(c.cx, c.cy)) dotScore *= 0.20;
             if (dotScore > score) score = dotScore;
             if (!subBest[si] || dotScore > subBest[si].score) {
               subBest[si] = {
@@ -1373,6 +1393,8 @@ function combineAnalysisPasses(base, faint, ultra, lineBound) {
 // ── 희소 중심점 메인 분석 함수 ──────────────
 // 기본/흐린점/초희미 고립점 패스를 영역별로 앙상블한다.
 function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
+  { const _g = toGrayFloat(imageData); _lmW = imageData.width; _lmH = imageData.height;
+    _lineMaskCache = buildLineMask(_g, _lmW, _lmH, 210, Math.max(18, Math.round(Math.min(_lmW, _lmH) * 0.02))); }
   const base = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_BASE_OPTIONS);
   const faint = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_FAINT_OPTIONS);
   const ultra = analyzeUltraFaintPass(imageData, region, ULTRA_FAINT_OPTIONS);
@@ -1716,15 +1738,18 @@ function calcZoneConfidence(scores) {
 }
 
 function calcEnsembleConfidence(result) {
-  if (!result?.certainties || result.certainties.length === 0) {
-    return calcConfidence(result?.scores, result?.digits);
+  // certainties(포화) 대신 실제 점수 격차 기반 신뢰도(calcConfidence) 사용 (v4.8)
+  let conf = calcConfidence(result?.scores, result?.digits);
+  // 선택된 점이 표선 위에 있으면 그 비율만큼 신뢰도 강등
+  if (result?.zoneBest) {
+    let onl = 0, n = 0;
+    for (const k in result.zoneBest) {
+      const z = result.zoneBest[k];
+      if (z && z.si >= 0 && z.score > 0) { n++; if (onLine(z.cx, z.cy)) onl++; }
+    }
+    if (n > 0) conf = Math.round(conf * (1 - 0.5 * (onl / n)));
   }
-  const detected = result.digits.filter(d => d >= 0).length;
-  if (detected < P_ROWS * P_COLS) {
-    return calcConfidence(result.scores, result.digits);
-  }
-  const avg = result.certainties.reduce((sum, v) => sum + v, 0) / result.certainties.length;
-  return Math.round(avg * 100);
+  return conf;
 }
 
 function applyZoom(nextZoom) {
