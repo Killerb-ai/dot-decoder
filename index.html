@@ -416,6 +416,48 @@
       font-size: 11px; color: var(--muted);
       padding: 4px 0;
     }
+
+    /* ── 카메라 촬영 버튼 (모바일) ── */
+    #cameraInput { display: none; }
+    .camera-btn {
+      display: none;               /* 데스크톱 숨김, 모바일 표시 */
+      width: 100%;
+      margin-top: 8px;
+      padding: 14px 12px;
+      border: none; border-radius: var(--radius);
+      background: var(--accent); color: #fff;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      align-items: center; justify-content: center; gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .camera-btn:active { filter: brightness(0.92); }
+
+    /* ── 모바일 반응형 (≤768px) ── */
+    @media (max-width: 768px) {
+      .header { flex-wrap: wrap; padding: 10px 12px; height: auto; gap: 8px; }
+      .header-badge { font-size: 10px; order: 3; width: 100%; white-space: normal; }
+      .main { flex-direction: column; height: auto; min-height: calc(100vh - 65px); overflow: visible; }
+      .panel-left {
+        width: 100%; min-width: 0; max-width: 100%;
+        border-right: none; border-bottom: 1px solid var(--border);
+        overflow-y: visible; padding: 14px;
+      }
+      .panel-right { min-height: 60vh; }
+      .canvas-area { min-height: 320px; padding: 44px 8px 8px; }
+      .camera-btn { display: flex; }            /* 모바일에서 노출 */
+      .upload-zone { padding: 18px 10px; }
+      .region-fields { grid-template-columns: 1fr 1fr; }
+      .stats-row, .stat { font-size: 12px; }
+      /* 터치 타깃 키우기 */
+      .btn, .toggle, select, input[type=number] { min-height: 40px; }
+      .zoom-toolbar { top: 8px; right: 8px; }
+    }
+    /* 아주 좁은 화면 */
+    @media (max-width: 420px) {
+      .header-title { font-size: 16px; }
+      .canvas-area { min-height: 260px; }
+    }
+
   </style>
 </head>
 <body>
@@ -426,7 +468,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v5.1 · QR 자동정렬(해상도 적응) · 최종 업데이트 2026-06-05 16:16 (KST)</div>
+  <div class="header-badge">v5.2 · 모바일 지원·카메라 촬영 · 최종 업데이트 2026-06-05 16:40 (KST)</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -444,6 +486,8 @@
         </div>
       </div>
       <input type="file" id="fileInput" accept="image/*">
+      <button type="button" class="camera-btn" id="cameraBtn">📷 사진 촬영</button>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment">
     </div>
 
     <hr class="divider">
@@ -2464,6 +2508,12 @@ document.getElementById('uploadZone').addEventListener('click', () =>
   document.getElementById('fileInput').click());
 document.getElementById('fileInput').addEventListener('change', e =>
   e.target.files[0] && loadImage(e.target.files[0]));
+// 모바일 카메라 촬영
+const _camBtn=document.getElementById('cameraBtn'), _camIn=document.getElementById('cameraInput');
+if(_camBtn&&_camIn){
+  _camBtn.addEventListener('click', ()=> _camIn.click());
+  _camIn.addEventListener('change', e=> e.target.files[0] && loadImage(e.target.files[0]));
+}
 
 const uploadZone = document.getElementById('uploadZone');
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
