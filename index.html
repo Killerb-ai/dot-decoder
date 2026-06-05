@@ -426,7 +426,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v5.0 · QR 자동정렬 디코더 · 최종 업데이트 2026-06-05 11:47 (KST)</div>
+  <div class="header-badge">v5.1 · QR 자동정렬(해상도 적응) · 최종 업데이트 2026-06-05 16:16 (KST)</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -2276,17 +2276,24 @@ function labelCC(mask,w,h){ // 4-연결, 반환: 컴포넌트 {x0,y0,x1,y1,area}
   return comps;
 }
 function detectQRCenter(gray,w,h){
-  const dark=new Float32Array(w*h);for(let i=0;i<w*h;i++)dark[i]=gray[i]<128?1:0;
-  const B=20; // 40px 블록 => r=20
-  const df=boxBlurI(dark,w,h,B);
+  // 해상도 적응형 + 모서리집중 + 미세모듈 분산으로 QR 식별 (v5.1)
+  const mn=Math.min(w,h);
+  const Bs=Math.max(5,Math.round(mn*0.006)); // 미세모듈 스케일
   const sq=new Float32Array(w*h);for(let i=0;i<w*h;i++)sq[i]=gray[i]*gray[i];
-  const m=boxBlurI(gray,w,h,B),m2=boxBlurI(sq,w,h,B);
+  const m=boxBlurI(gray,w,h,Bs),m2=boxBlurI(sq,w,h,Bs);
+  const dark=new Float32Array(w*h);for(let i=0;i<w*h;i++)dark[i]=gray[i]<128?1:0;
+  const df=boxBlurI(dark,w,h,Math.max(10,Math.round(mn*0.012)));
+  const mx=Math.round(w*0.20),my=Math.round(h*0.20);
   const mask=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){const v=m2[i]-m[i]*m[i];const ls=v>0?Math.sqrt(v):0;
-    mask[i]=(df[i]>0.3&&df[i]<0.75&&ls>55)?1:0;}
-  const comps=labelCC(mask,w,h);let best=null;
+  for(let y=0;y<h;y++){const corner=(y<my||y>=h-my);for(let x=0;x<w;x++){
+    if(!(corner||x<mx||x>=w-mx))continue;
+    const v=m2[y*w+x]-m[y*w+x]*m[y*w+x];const ls=v>0?Math.sqrt(v):0;
+    const dfr=df[y*w+x];
+    if(ls>62&&dfr>0.25&&dfr<0.82)mask[y*w+x]=1;
+  }}
+  const comps=labelCC(mask,w,h);let best=null;const amin=(mn*0.028)*(mn*0.028);
   for(const c of comps){const ww=c.x1-c.x0+1,hh=c.y1-c.y0+1;
-    if(c.area<3000||Math.max(ww,hh)>400||Math.min(ww,hh)<80||!(ww/hh>0.6&&ww/hh<1.7))continue;
+    if(c.area<amin||!(ww/hh>0.5&&ww/hh<2.0)||Math.max(ww,hh)>mn*0.2)continue;
     if(!best||c.area>best.area)best={area:c.area,cx:((c.x0+c.x1)/2)|0,cy:((c.y0+c.y1)/2)|0};}
   return best;
 }
