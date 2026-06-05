@@ -426,7 +426,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v4.8 · 선결합 희미점 보강 · 최종 업데이트 2026-06-01 14:39 (KST)</div>
+  <div class="header-badge">v5.0 · QR 자동정렬 디코더 · 최종 업데이트 2026-06-05 11:47 (KST)</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -2244,6 +2244,106 @@ function updateManualFields() {
 }
 
 // ── 분석 실행 ────────────────────────────────────
+// ============================================================
+//  QR 자동정렬 디코더 (v5.0, 300dpi 실문서) — QR로 전체영역 자동산출
+// ============================================================
+// ── QR 자동정렬 디코더 (300dpi 실문서) — 순수 JS ──
+function boxBlurI(o,w,h,r){
+  const W1=w+1,ii=new Float64Array(W1*(h+1));
+  for(let y=0;y<h;y++){let row=0;for(let x=0;x<w;x++){row+=o[y*w+x];ii[(y+1)*W1+(x+1)]=ii[y*W1+(x+1)]+row;}}
+  const out=new Float32Array(w*h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const x0=Math.max(0,x-r),x1=Math.min(w-1,x+r),y0=Math.max(0,y-r),y1=Math.min(h-1,y+r);
+    const s=ii[(y1+1)*W1+(x1+1)]-ii[y0*W1+(x1+1)]-ii[(y1+1)*W1+x0]+ii[y0*W1+x0];
+    out[y*w+x]=s/((x1-x0+1)*(y1-y0+1));
+  } return out;
+}
+function integral(arr,w,h){const W1=w+1,ii=new Float64Array(W1*(h+1));
+  for(let y=0;y<h;y++){let row=0;for(let x=0;x<w;x++){row+=arr[y*w+x];ii[(y+1)*W1+(x+1)]=ii[y*W1+(x+1)]+row;}}return ii;}
+function rectSum(ii,w,h,x0,y0,x1,y1){const W1=w+1;x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(w,x1);y1=Math.min(h,y1);
+  return ii[y1*W1+x1]-ii[y0*W1+x1]-ii[y1*W1+x0]+ii[y0*W1+x0];}
+function labelCC(mask,w,h){ // 4-연결, 반환: 컴포넌트 {x0,y0,x1,y1,area}
+  const lab=new Int32Array(w*h);const st=new Int32Array(w*h);const comps=[];let nl=0;
+  for(let i=0;i<w*h;i++){if(!mask[i]||lab[i])continue;nl++;let sp=0;st[sp++]=i;lab[i]=nl;
+    let x0=i%w,x1=i%w,y0=(i/w)|0,y1=(i/w)|0,area=0;
+    while(sp>0){const p=st[--sp];const py=(p/w)|0,px=p-py*w;area++;
+      if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;
+      if(px>0){const q=p-1;if(mask[q]&&!lab[q]){lab[q]=nl;st[sp++]=q;}}
+      if(px<w-1){const q=p+1;if(mask[q]&&!lab[q]){lab[q]=nl;st[sp++]=q;}}
+      if(py>0){const q=p-w;if(mask[q]&&!lab[q]){lab[q]=nl;st[sp++]=q;}}
+      if(py<h-1){const q=p+w;if(mask[q]&&!lab[q]){lab[q]=nl;st[sp++]=q;}}}
+    comps.push({x0,y0,x1,y1,area});}
+  return comps;
+}
+function detectQRCenter(gray,w,h){
+  const dark=new Float32Array(w*h);for(let i=0;i<w*h;i++)dark[i]=gray[i]<128?1:0;
+  const B=20; // 40px 블록 => r=20
+  const df=boxBlurI(dark,w,h,B);
+  const sq=new Float32Array(w*h);for(let i=0;i<w*h;i++)sq[i]=gray[i]*gray[i];
+  const m=boxBlurI(gray,w,h,B),m2=boxBlurI(sq,w,h,B);
+  const mask=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){const v=m2[i]-m[i]*m[i];const ls=v>0?Math.sqrt(v):0;
+    mask[i]=(df[i]>0.3&&df[i]<0.75&&ls>55)?1:0;}
+  const comps=labelCC(mask,w,h);let best=null;
+  for(const c of comps){const ww=c.x1-c.x0+1,hh=c.y1-c.y0+1;
+    if(c.area<3000||Math.max(ww,hh)>400||Math.min(ww,hh)<80||!(ww/hh>0.6&&ww/hh<1.7))continue;
+    if(!best||c.area>best.area)best={area:c.area,cx:((c.x0+c.x1)/2)|0,cy:((c.y0+c.y1)/2)|0};}
+  return best;
+}
+function runLengthLines(dark,w,h,L){
+  const ln=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){let run=0,xs=0;for(let x=0;x<=w;x++){const d=x<w&&dark[y*w+x];
+    if(d){if(run===0)xs=x;run++;}else{if(run>=L)for(let k=xs;k<x;k++)ln[y*w+k]=1;run=0;}}}
+  for(let x=0;x<w;x++){let run=0,ys=0;for(let y=0;y<=h;y++){const d=y<h&&dark[y*w+x];
+    if(d){if(run===0)ys=y;run++;}else{if(run>=L)for(let k=ys;k<y;k++)ln[k*w+x]=1;run=0;}}}
+  return ln;
+}
+function detectDots300(gray,w,h){
+  const bg=boxBlurI(gray,w,h,30);
+  const thm=new Float32Array(w*h),dark=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){thm[i]=bg[i]-gray[i];dark[i]=gray[i]<bg[i]-25?1:0;}
+  const ln=runLengthLines(dark,w,h,50);
+  const cand=new Uint8Array(w*h),darkNL=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){cand[i]=(thm[i]>25&&!ln[i])?1:0;darkNL[i]=(dark[i]&&!ln[i])?1:0;}
+  const ii=integral(darkNL,w,h);const comps=labelCC(cand,w,h);const dots=[];const R=34;
+  for(const c of comps){const ww=c.x1-c.x0+1,hh=c.y1-c.y0+1;
+    if(c.area<8||c.area>45||Math.max(ww,hh)>15||Math.min(ww,hh)/Math.max(ww,hh)<0.45)continue;
+    const cx=((c.x0+c.x1)/2)|0,cy=((c.y0+c.y1)/2)|0,cont=thm[cy*w+cx];
+    const outer=rectSum(ii,w,h,cx-R,cy-R,cx+R,cy+R),inner=rectSum(ii,w,h,cx-ww,cy-hh,cx+ww+1,cy+hh+1);
+    const rd=(outer-inner)/Math.max(1,(2*R)*(2*R)-(2*ww)*(2*hh));
+    if(rd>0.06)continue;
+    dots.push({cx,cy,score:cont*(1-rd),area:c.area});}
+  return dots;
+}
+function analyzeQRAuto(imageData){
+  const w=imageData.width,h=imageData.height;
+  if (w < 1800 || h < 1800) return { digits:null, mode:'저해상도(QR자동제외)' };  // 300dpi 전용 보정
+  const gray=toGrayFloat(imageData);
+  const qr=detectQRCenter(gray,w,h);
+  if(!qr)return{digits:null,mode:'QR없음'};
+  // 방향: QR이 하단(cy>h/2)=세로 정방향. (가로/회전은 추후)
+  let bbox;
+  if(qr.cy>h/2){ // 세로
+    bbox=[qr.cx-2227,qr.cy-3329,qr.cx+237,qr.cy-37];
+  } else { return {digits:null,mode:'세로아님(추후)',qr}; }
+  const PC=2,PR=4,SR=2,SC=4;
+  const dots=detectDots300(gray,w,h);
+  const [x0,y0,x1,y1]=bbox;const pw=(x1-x0)/PC,ph=(y1-y0)/PR;
+  const best=new Array(8).fill(null);
+  for(const d of dots){if(!(x0<=d.cx&&d.cx<x1&&y0<=d.cy&&d.cy<y1))continue;
+    const pc=Math.floor((d.cx-x0)/pw),pr=Math.floor((d.cy-y0)/ph),pi=pr*PC+pc;
+    if(!best[pi]||d.score>best[pi].score)best[pi]=d;}
+  const digits=[],scores=[],zoneBest={};
+  for(let pi=0;pi<8;pi++){const b=best[pi];const sc=new Array(8).fill(0);
+    if(!b){digits.push(-1);scores.push(sc);continue;}
+    const relx=(b.cx-x0-(pi%PC)*pw)/pw,rely=(b.cy-y0-((pi/PC)|0)*ph)/ph;
+    const scc=Math.min(SC-1,Math.floor(relx*SC)),srr=Math.min(SR-1,Math.floor(rely*SR));
+    const si=srr*SC+scc;digits.push(si);sc[si]=b.score;scores.push(sc);
+    zoneBest[pi]={cx:b.cx,cy:b.cy,pi,si,score:b.score};}
+  const candidates=dots.slice(0,300).map(d=>({cx:d.cx,cy:d.cy,area:d.area,score:d.score}));
+  return {digits,scores,candidates,zoneBest,mode:'QR자동정렬',region:{x:x0,y:y0,w:x1-x0,h:y1-y0},qr};
+}
+
 function analyze() {
   if (!state.imageData) return alert('이미지를 먼저 업로드하세요.');
 
@@ -2261,10 +2361,12 @@ function analyze() {
   // 비동기로 실행 (UI 블록 방지)
   setTimeout(() => {
     try {
-      const result = analyzeAnomaly(
-        state.imageData, state.region,
-        darkThresh, bgPct
-      );
+      let result = analyzeQRAuto(state.imageData);
+      if (result && result.digits) {
+        state.region = result.region;   // QR로 산출한 전체영역
+      } else {
+        result = analyzeAnomaly(state.imageData, state.region, darkThresh, bgPct);
+      }
 
       state.digits = result.digits;
       state.scores = result.scores;
