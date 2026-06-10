@@ -468,7 +468,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v6.0 · 점프로파일 일관성 검출 (3샘플 24/24) · 최종 업데이트 2026-06-10 (KST)</div>
+  <div class="header-badge">v6.1 · 점프로파일 일관성 검출 (3샘플 24/24) · 최종 업데이트 2026-06-10 (KST)</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -2349,15 +2349,68 @@ function runLengthLines(dark,w,h,L){
     if(d){if(run===0)ys=y;run++;}else{if(run>=L)for(let k=ys;k<y;k++)ln[k*w+x]=1;run=0;}}}
   return ln;
 }
-function detectDotsV6(gray,w,h){
-  // v6.0: 완화된 후보검출(하드 고립필터 제거) — 점수화는 analyzeQRAuto에서
-  const bg=boxBlurI(gray,w,h,30);
-  const thm=new Float32Array(w*h),dark=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){thm[i]=bg[i]-gray[i];dark[i]=gray[i]<bg[i]-15?1:0;}
-  const ln=runLengthLines(dark,w,h,50);
-  const cand=new Uint8Array(w*h),darkNL=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){cand[i]=(thm[i]>20&&!ln[i])?1:0;darkNL[i]=(dark[i]&&!ln[i])?1:0;}
-  const ii=integral(darkNL,w,h);
+// ============================================================
+//  v6.1 — 기울기보정 + 격자 자기보정 + 위치사전확률 + 캘리브레이션 신뢰도
+//  (연구: 변형 600/600·홀드아웃 264/264, 캘리브레이션 AUC 0.97)
+// ============================================================
+function medArr(a){if(!a.length)return null;const b=a.slice().sort((u,v)=>u-v);return b.length%2?b[(b.length-1)/2]:(b[b.length/2-1]+b[b.length/2])/2;}
+function detectQRCenterV61(gray,w,h){
+  // 임계 캐스케이드(62→45→32) + 중심부 dark-fraction 가중(QR≈0.57, 텍스트≈0.33)
+  const mn=Math.min(w,h);
+  const Bs=Math.max(5,Math.round(mn*0.006));
+  const sq=new Float32Array(w*h);for(let i=0;i<w*h;i++)sq[i]=gray[i]*gray[i];
+  const m=boxBlurI(gray,w,h,Bs),m2=boxBlurI(sq,w,h,Bs);
+  const dark=new Float32Array(w*h);for(let i=0;i<w*h;i++)dark[i]=gray[i]<128?1:0;
+  const df=boxBlurI(dark,w,h,Math.max(10,Math.round(mn*0.012)));
+  const ls=new Float32Array(w*h);for(let i=0;i<w*h;i++){const v=m2[i]-m[i]*m[i];ls[i]=v>0?Math.sqrt(v):0;}
+  const mx_=Math.round(w*0.20),my_=Math.round(h*0.20);
+  const amin=(mn*0.028)*(mn*0.028);
+  let best=null,bs=0;
+  for(const thr of [62,45,32]){
+    const mask=new Uint8Array(w*h);
+    for(let y=0;y<h;y++){const corner=(y<my_||y>=h-my_);for(let x=0;x<w;x++){
+      if(!(corner||x<mx_||x>=w-mx_))continue;
+      const i=y*w+x;
+      if(ls[i]>thr&&df[i]>0.25&&df[i]<0.82)mask[i]=1;
+    }}
+    const comps=labelCC(mask,w,h);
+    for(const c of comps){
+      const ww=c.x1-c.x0+1,hh=c.y1-c.y0+1;
+      if(c.area<amin||!(ww/hh>0.5&&ww/hh<2.0)||Math.max(ww,hh)>mn*0.2)continue;
+      const cx=((c.x0+c.x1)/2)|0,cy=((c.y0+c.y1)/2)|0;
+      const cdf=df[cy*w+cx];
+      const q=Math.exp(-Math.pow((cdf-0.57)/0.12,2));
+      const sc=c.area*q;
+      if(sc>bs){bs=sc;best={cx,cy};}
+    }
+  }
+  return best;
+}
+function estimateSkewV61(dark,w,h){
+  // 어두운 픽셀(3px 서브샘플) 투영분산 최대화로 기울기 추정(±2.0°)
+  const Y=[],X=[];
+  for(let y=0;y<h;y+=3){const r=y*w;for(let x=0;x<w;x+=3){if(dark[r+x]){Y.push(y);X.push(x);}}}
+  const n=Y.length;
+  if(n<1000)return 0;
+  const yp=new Float32Array(n);
+  function score(deg){
+    const t=deg*Math.PI/180;let mn=1e18,mx=-1e18;
+    for(let i=0;i<n;i++){const v=Y[i]-X[i]*t;yp[i]=v;if(v<mn)mn=v;if(v>mx)mx=v;}
+    const nb=Math.max(1,Math.ceil((mx-mn)/3)+1);const hg=new Float64Array(nb);
+    for(let i=0;i<n;i++)hg[((yp[i]-mn)/3)|0]++;
+    let s=0;for(let i=0;i<nb;i++)s+=hg[i]*hg[i];
+    return s;
+  }
+  let best=0,bs=-1;
+  for(let t=-2.0;t<=2.005;t+=0.1){const s=score(t);if(s>bs){bs=s;best=t;}}
+  let b2=best;bs=-1;
+  for(let t=best-0.09;t<=best+0.0905;t+=0.02){const s=score(t);if(s>bs){bs=s;b2=t;}}
+  return b2;
+}
+function detectDotsV61(thm,ln,iiD,w,h,thr){
+  // 후보 CC 수집(완화) + rd(34px 링) + rd2(5~14px 근접링)
+  const cand=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++)cand[i]=(thm[i]>thr&&!ln[i])?1:0;
   const lab=new Int32Array(w*h),st=new Int32Array(w*h);const dots=[];let nl=0;
   for(let i0=0;i0<w*h;i0++){
     if(!cand[i0]||lab[i0])continue;nl++;let sp=0;st[sp++]=i0;lab[i0]=nl;
@@ -2373,59 +2426,179 @@ function detectDotsV6(gray,w,h){
     if(dim>15||area<4||area>45||Math.min(ww,hh)/dim<0.4||mx<60)continue;
     const cx=sx/sw,cy=sy/sw,icx=Math.round(cx),icy=Math.round(cy);
     const R=34,ex=dim;
-    const outer=rectSum(ii,w,h,icx-R,icy-R,icx+R,icy+R);
-    const inner=rectSum(ii,w,h,icx-ex,icy-ex,icx+ex+1,icy+ex+1);
+    const outer=rectSum(iiD,w,h,icx-R,icy-R,icx+R,icy+R);
+    const inner=rectSum(iiD,w,h,icx-ex,icy-ex,icx+ex+1,icy+ex+1);
     const rd=(outer-inner)/Math.max(1,(2*R)*(2*R)-(2*ex)*(2*ex));
-    dots.push({cx,cy,area,cont:mx,rd,dim});
+    const o2=rectSum(iiD,w,h,icx-14,icy-14,icx+15,icy+15);
+    const i2=rectSum(iiD,w,h,icx-5,icy-5,icx+6,icy+6);
+    const rd2=(o2-i2)/Math.max(1,29*29-11*11);
+    dots.push({cx,cy,area,cont:mx,rd,rd2,dim});
   }
   return dots;
 }
+function fitAxisV61(vals,wts,origin,pitch,npos,maxScale,maxShift){
+  // 1D 격자 자기보정: vals ~ A + B*(p+0.5) (EM 3회, 가중 LSQ, 클램프)
+  let A=origin,B=pitch;
+  for(let it=0;it<3;it++){
+    let wsum=0,mx=0,my=0;
+    const P=new Float64Array(vals.length);
+    for(let i=0;i<vals.length;i++){
+      let p=Math.round((vals[i]-A)/B-0.5);
+      if(p<0)p=0;if(p>npos-1)p=npos-1;
+      P[i]=p+0.5;wsum+=wts[i];mx+=wts[i]*P[i];my+=wts[i]*vals[i];
+    }
+    if(wsum<=0||vals.length<3)return [A,B];
+    mx/=wsum;my/=wsum;
+    let cov=0,va=0;
+    for(let i=0;i<vals.length;i++){cov+=wts[i]*(P[i]-mx)*(vals[i]-my);va+=wts[i]*(P[i]-mx)*(P[i]-mx);}
+    if(va<1e-9)return [A,B];
+    let Bn=cov/va,An=my-Bn*mx;
+    B=Math.min(pitch*(1+maxScale),Math.max(pitch*(1-maxScale),Bn));
+    A=Math.min(origin+maxShift*pitch,Math.max(origin-maxShift*pitch,An));
+  }
+  return [A,B];
+}
 function analyzeQRAuto(imageData){
-  // v6.0: QR앵커(윈도우중앙 오프셋) + 문서별 점프로파일 일관성 점수 + 비대칭 농도 페널티
+  // v6.1 파이프라인: QR캐스케이드 → 노이즈적응 → 기울기보정 → 이중임계 점검출
+  //                → 격자 자기보정 → 위치사전확률 × 점프로파일 → 캘리브레이션 신뢰도
   const w=imageData.width,h=imageData.height;
-  if (w < 1800 || h < 1800) return { digits:null, mode:'저해상도(QR자동제외)' };
+  if(w<1800||h<1800)return{digits:null,mode:'저해상도(QR자동제외)'};
   const gray=toGrayFloat(imageData);
-  const qr=detectQRCenter(gray,w,h);
+  const qr=detectQRCenterV61(gray,w,h);
   if(!qr)return{digits:null,mode:'QR없음'};
-  if(qr.cy<=h/2) return {digits:null,mode:'세로아님(추후)',qr};
-  const x0=qr.cx-2367,y0=qr.cy-3344,x1=qr.cx+97,y1=qr.cy-52;
-  const PC=2,PR=4,SR=2,SC=4;
-  const pw=(x1-x0)/PC,ph=(y1-y0)/PR;
-  const all=detectDotsV6(gray,w,h);
-  const cs=all.filter(d=>x0<=d.cx&&d.cx<x1&&y0<=d.cy&&d.cy<y1&&!(Math.abs(d.cx-qr.cx)<220&&Math.abs(d.cy-qr.cy)<220));
-  for(const d of cs){d.pi=Math.floor((d.cy-y0)/ph)*PC+Math.floor((d.cx-x0)/pw);}
+  if(qr.cy<=h/2)return{digits:null,mode:'세로아님(추후)',qr};
+  // 노이즈 추정(3x3 잔차 중앙값) → 필요시 스무딩
+  const b1=boxBlurI(gray,w,h,1);
+  let sig=0;{
+    const hist=new Float64Array(1200);
+    for(let i=0;i<w*h;i++){const v=Math.abs(gray[i]-b1[i]);hist[Math.min(1199,(v*10)|0)]++;}
+    let c=0;const target=w*h/2;
+    for(let k=0;k<1200;k++){c+=hist[k];if(c>=target){sig=1.4826*((k+0.5)/10)/Math.sqrt(8/9);break;}}
+  }
+  let gd=gray;
+  if(sig>4.5)gd=b1;
+  if(sig>9.0)gd=boxBlurI(gd,w,h,1);
+  const bg=boxBlurI(gd,w,h,30);
+  const dark=new Uint8Array(w*h);for(let i=0;i<w*h;i++)dark[i]=gd[i]<bg[i]-15?1:0;
+  const skew=estimateSkewV61(dark,w,h);
+  const ln=runLengthLines(dark,w,h,50);
+  const darkNL=new Uint8Array(w*h);for(let i=0;i<w*h;i++)darkNL[i]=(dark[i]&&!ln[i])?1:0;
+  const iiD=integral(darkNL,w,h);
+  const thm=new Float32Array(w*h);for(let i=0;i<w*h;i++)thm[i]=bg[i]-gd[i];
+  const dots=detectDotsV61(thm,ln,iiD,w,h,20);
+  const extra=detectDotsV61(thm,ln,iiD,w,h,38);
+  for(const e of extra){
+    let dup=false;
+    for(const d of dots){if(Math.abs(e.cx-d.cx)<4&&Math.abs(e.cy-d.cy)<4){dup=true;break;}}
+    if(!dup){e.rescued=true;dots.push(e);}
+  }
+  // 좌표 역회전(QR 중심 기준)
+  const t=skew*Math.PI/180,ct=Math.cos(t),stn=Math.sin(t);
+  for(const d of dots){
+    const dx=d.cx-qr.cx,dy=d.cy-qr.cy;
+    d.ux=qr.cx+ct*dx+stn*dy;
+    d.uy=qr.cy-stn*dx+ct*dy;
+  }
+  // 격자 앵커(3문서 합의값) + 후보 수집(yCap: 푸터/QR행 차단)
+  const GX0=-2377.0,GPX=310.4,GY0=-3431.0,GPY=441.39;
+  const x0=qr.cx+GX0,y0=qr.cy+GY0,x1=x0+GPX*8,y1=y0+GPY*8;
+  const PC=2,SR=2,SC=4;
+  const swx=GPX,shy=GPY;
+  const yCap=qr.cy-60;
+  const cs=[];
+  for(const d of dots){
+    if(d.ux<x0-swx*0.5||d.ux>=x1+swx*0.5)continue;
+    if(d.uy<y0-shy*0.5||d.uy>=Math.min(y1+shy*0.5,yCap))continue;
+    if(Math.abs(d.ux-qr.cx)<220&&Math.abs(d.uy-qr.cy)<220)continue;
+    cs.push(d);
+  }
+  if(!cs.length)return{digits:null,mode:'후보없음',qr};
+  // 1차 프로파일(기존 신뢰셋) → 1차 점수(격자적합 가중치)
+  const pwReg=(x1-x0)/2,phReg=(y1-y0)/4;
   const trz={};
-  for(const d of cs){if(d.rd<=0.03&&d.area>=6&&d.area<=40&&d.cont>=100&&d.dim<=12){
-    if(!trz[d.pi]||d.cont>trz[d.pi].cont)trz[d.pi]=d;}}
-  const med=a=>{if(!a.length)return null;a=a.slice().sort((u,v)=>u-v);
-    return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2;};
-  const tv=Object.values(trz);
-  const mc=med(tv.map(d=>d.cont))??180, ma=med(tv.map(d=>d.area))??14;
+  for(const d of cs){
+    let pr=Math.floor((d.uy-y0)/phReg);pr=Math.max(0,Math.min(3,pr));
+    let pc=Math.floor((d.ux-x0)/pwReg);pc=Math.max(0,Math.min(1,pc));
+    d.pi0=pr*PC+pc;
+    if(d.rd<=0.03&&d.area>=6&&d.area<=40&&d.cont>=100&&d.dim<=12&&!d.rescued){
+      if(!trz[d.pi0]||d.cont>trz[d.pi0].cont)trz[d.pi0]=d;
+    }
+  }
+  let tv=Object.values(trz);
+  let mc=medArr(tv.map(d=>d.cont))??180,ma=medArr(tv.map(d=>d.area))??14;
+  const profSim=(d,mcv,mav)=>{
+    const dc=d.cont-mcv;
+    const sim=(dc>0?Math.exp(-dc/30):Math.exp(dc/80))*Math.exp(-Math.abs(d.area-mav)/10);
+    return sim*Math.pow(1-Math.min(d.rd,0.3),3)*Math.pow(1-Math.min(d.rd2,0.35),2);
+  };
+  for(const d of cs)d.s1=profSim(d,mc,ma)*(d.rescued?0.5:1);
+  // 격자 자기보정(영역별 상위2, 점수가중)
+  const byz={};
+  for(const d of cs){(byz[d.pi0]=byz[d.pi0]||[]).push(d);}
+  const fv_x=[],fv_y=[],fw=[];
+  for(const k in byz){
+    const zz=byz[k].slice().sort((a,b)=>b.s1-a.s1).slice(0,2);
+    for(const d of zz){fv_x.push(d.ux);fv_y.push(d.uy);fw.push(d.s1);}
+  }
+  const [Ax,Bx]=fitAxisV61(fv_x,fw,x0,GPX,8,0.025,0.30);
+  const [Ay,By]=fitAxisV61(fv_y,fw,y0,GPY,8,0.040,0.35);
+  // 보정격자 기준 위치(잔차)·사전확률 → 신뢰셋 재산출(최중앙 우선)
+  const SIGX=0.13,SIGY=0.17;
+  for(const d of cs){
+    const px=(d.ux-Ax)/Bx-0.5,py=(d.uy-Ay)/By-0.5;
+    let ix=Math.round(px);ix=Math.max(0,Math.min(7,ix));
+    let iy=Math.round(py);iy=Math.max(0,Math.min(7,iy));
+    d.ix=ix;d.iy=iy;d.rx=px-ix;d.ry=py-iy;
+    d.pos=Math.exp(-0.5*Math.pow(d.rx/SIGX,2)-0.5*Math.pow(d.ry/SIGY,2));
+  }
+  const trz2={};
+  for(const d of cs){
+    if(Math.abs(d.rx)<0.22&&Math.abs(d.ry)<0.25&&d.rd<=0.25&&d.area>=5&&d.area<=40&&d.cont>=80&&d.dim<=12&&!d.rescued){
+      const key=((d.ix/4)|0)+'_'+((d.iy/2)|0);
+      if(!trz2[key]||d.pos>trz2[key].pos)trz2[key]=d;
+    }
+  }
+  const tv2=Object.values(trz2);
+  if(tv2.length>=3){mc=medArr(tv2.map(d=>d.cont));ma=medArr(tv2.map(d=>d.area));}
+  // 최종 점수·영역배정
   const zone=[[],[],[],[],[],[],[],[]];
   for(const d of cs){
-    const dc=d.cont-mc;
-    const sim=(dc>0?Math.exp(-dc/30):Math.exp(dc/80))*Math.exp(-Math.abs(d.area-ma)/10);
-    d.s=sim*Math.pow(1-Math.min(d.rd,0.3),3);
-    zone[d.pi].push(d);
+    d.s=profSim(d,mc,ma)*d.pos*(d.rescued?0.5:1);
+    d.pi=((d.iy/2)|0)*PC+((d.ix/4)|0);
+    d.si=(d.iy%2)*SC+(d.ix%4);
+    if(d.pi>=0&&d.pi<8)zone[d.pi].push(d);
   }
-  const siOf=o=>{const rx=(o.cx-x0-(o.pi%PC)*pw)/pw,ry=(o.cy-y0-((o.pi/PC)|0)*ph)/ph;
-    return Math.min(SR-1,Math.floor(ry*SR))*SC+Math.min(SC-1,Math.floor(rx*SC));};
   const digits=[],scores=[],zoneBest={},margins=[];
   for(let pi=0;pi<8;pi++){
     const zs=zone[pi].sort((a,b)=>b.s-a.s);
     const sc=new Array(8).fill(0);
     if(!zs.length){digits.push(-1);scores.push(sc);margins.push(0);continue;}
-    const b=zs[0];const si=siOf(b);
-    digits.push(si);sc[si]=b.s;scores.push(sc);
-    zoneBest[pi]={cx:Math.round(b.cx),cy:Math.round(b.cy),pi,si,score:b.s};
+    const b=zs[0];
+    digits.push(b.si);sc[b.si]=b.s;scores.push(sc);
     let m=1.0;
-    for(let k=1;k<zs.length;k++){if(siOf(zs[k])!==si){m=Math.max(0,1-zs[k].s/b.s);break;}}
+    for(let k=1;k<zs.length;k++){if(zs[k].si!==b.si){m=Math.max(0,1-zs[k].s/b.s);break;}}
     margins.push(m);
+    zoneBest[pi]={cx:Math.round(b.cx),cy:Math.round(b.cy),pi,si:b.si,score:b.s,pos:b.pos,rd2:b.rd2,margin:m};
   }
-  const det=digits.filter(d=>d>=0).length;
-  const confidence=Math.round(100*(0.4*det/8+0.6*(margins.reduce((a,b)=>a+b,0)/8)));
+  // 캘리브레이션 신뢰도(로지스틱: margin,pos,rd2 → P(자릿정답), 문서=곱)
+  const Wc=[-1.8,2.89,5.58,-14.68];
+  let docp=1;
+  for(let pi=0;pi<8;pi++){
+    const b=zoneBest[pi];
+    let p=0.3;
+    if(b){
+      const z=Wc[0]+Wc[1]*margins[pi]+Wc[2]*b.pos+Wc[3]*(b.rd2||0);
+      p=1/(1+Math.exp(-z));
+      p=Math.min(0.998,Math.max(0.02,p));
+      b.p=Math.round(100*p);
+    }
+    docp*=p;
+  }
+  const confidence=Math.round(100*docp);
   const candidates=cs.slice().sort((a,b)=>b.s-a.s).slice(0,300).map(d=>({cx:Math.round(d.cx),cy:Math.round(d.cy),area:d.area,score:d.s}));
-  return {digits,scores,candidates,zoneBest,confidence,mode:'QR자동정렬 v6',region:{x:x0,y:y0,w:x1-x0,h:y1-y0},qr};
+  return {digits,scores,candidates,zoneBest,confidence,margins,
+          mode:'QR자동정렬 v6.1'+(Math.abs(skew)>=0.15?` (기울기 ${skew.toFixed(2)}°)`:''),
+          region:{x:Ax,y:Ay,w:Bx*8,h:By*8},qr,skew};
 }
 
 function analyze() {
