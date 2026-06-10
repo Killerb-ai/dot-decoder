@@ -468,7 +468,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v5.2 · 모바일 지원·카메라 촬영 · 최종 업데이트 2026-06-05 16:40 (KST)</div>
+  <div class="header-badge">v6.0 · 점프로파일 일관성 검출 (3샘플 24/24) · 최종 업데이트 2026-06-10 (KST)</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -2349,50 +2349,83 @@ function runLengthLines(dark,w,h,L){
     if(d){if(run===0)ys=y;run++;}else{if(run>=L)for(let k=ys;k<y;k++)ln[k*w+x]=1;run=0;}}}
   return ln;
 }
-function detectDots300(gray,w,h){
+function detectDotsV6(gray,w,h){
+  // v6.0: 완화된 후보검출(하드 고립필터 제거) — 점수화는 analyzeQRAuto에서
   const bg=boxBlurI(gray,w,h,30);
   const thm=new Float32Array(w*h),dark=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){thm[i]=bg[i]-gray[i];dark[i]=gray[i]<bg[i]-25?1:0;}
+  for(let i=0;i<w*h;i++){thm[i]=bg[i]-gray[i];dark[i]=gray[i]<bg[i]-15?1:0;}
   const ln=runLengthLines(dark,w,h,50);
   const cand=new Uint8Array(w*h),darkNL=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){cand[i]=(thm[i]>25&&!ln[i])?1:0;darkNL[i]=(dark[i]&&!ln[i])?1:0;}
-  const ii=integral(darkNL,w,h);const comps=labelCC(cand,w,h);const dots=[];const R=34;
-  for(const c of comps){const ww=c.x1-c.x0+1,hh=c.y1-c.y0+1;
-    if(c.area<8||c.area>45||Math.max(ww,hh)>15||Math.min(ww,hh)/Math.max(ww,hh)<0.45)continue;
-    const cx=((c.x0+c.x1)/2)|0,cy=((c.y0+c.y1)/2)|0,cont=thm[cy*w+cx];
-    const outer=rectSum(ii,w,h,cx-R,cy-R,cx+R,cy+R),inner=rectSum(ii,w,h,cx-ww,cy-hh,cx+ww+1,cy+hh+1);
-    const rd=(outer-inner)/Math.max(1,(2*R)*(2*R)-(2*ww)*(2*hh));
-    if(rd>0.06)continue;
-    dots.push({cx,cy,score:cont*(1-rd),area:c.area});}
+  for(let i=0;i<w*h;i++){cand[i]=(thm[i]>20&&!ln[i])?1:0;darkNL[i]=(dark[i]&&!ln[i])?1:0;}
+  const ii=integral(darkNL,w,h);
+  const lab=new Int32Array(w*h),st=new Int32Array(w*h);const dots=[];let nl=0;
+  for(let i0=0;i0<w*h;i0++){
+    if(!cand[i0]||lab[i0])continue;nl++;let sp=0;st[sp++]=i0;lab[i0]=nl;
+    let x0=i0%w,x1=x0,y0=(i0/w)|0,y1=y0,area=0,sw=0,sx=0,sy=0,mx=0;
+    while(sp>0){const q=st[--sp];const py=(q/w)|0,px=q-py*w;area++;
+      const v=thm[q];sw+=v;sx+=px*v;sy+=py*v;if(v>mx)mx=v;
+      if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;
+      if(px>0&&cand[q-1]&&!lab[q-1]){lab[q-1]=nl;st[sp++]=q-1;}
+      if(px<w-1&&cand[q+1]&&!lab[q+1]){lab[q+1]=nl;st[sp++]=q+1;}
+      if(py>0&&cand[q-w]&&!lab[q-w]){lab[q-w]=nl;st[sp++]=q-w;}
+      if(py<h-1&&cand[q+w]&&!lab[q+w]){lab[q+w]=nl;st[sp++]=q+w;}}
+    const ww=x1-x0+1,hh=y1-y0+1,dim=Math.max(ww,hh);
+    if(dim>15||area<4||area>45||Math.min(ww,hh)/dim<0.4||mx<60)continue;
+    const cx=sx/sw,cy=sy/sw,icx=Math.round(cx),icy=Math.round(cy);
+    const R=34,ex=dim;
+    const outer=rectSum(ii,w,h,icx-R,icy-R,icx+R,icy+R);
+    const inner=rectSum(ii,w,h,icx-ex,icy-ex,icx+ex+1,icy+ex+1);
+    const rd=(outer-inner)/Math.max(1,(2*R)*(2*R)-(2*ex)*(2*ex));
+    dots.push({cx,cy,area,cont:mx,rd,dim});
+  }
   return dots;
 }
 function analyzeQRAuto(imageData){
+  // v6.0: QR앵커(윈도우중앙 오프셋) + 문서별 점프로파일 일관성 점수 + 비대칭 농도 페널티
   const w=imageData.width,h=imageData.height;
-  if (w < 1800 || h < 1800) return { digits:null, mode:'저해상도(QR자동제외)' };  // 300dpi 전용 보정
+  if (w < 1800 || h < 1800) return { digits:null, mode:'저해상도(QR자동제외)' };
   const gray=toGrayFloat(imageData);
   const qr=detectQRCenter(gray,w,h);
   if(!qr)return{digits:null,mode:'QR없음'};
-  // 방향: QR이 하단(cy>h/2)=세로 정방향. (가로/회전은 추후)
-  let bbox;
-  if(qr.cy>h/2){ // 세로
-    bbox=[qr.cx-2227,qr.cy-3329,qr.cx+237,qr.cy-37];
-  } else { return {digits:null,mode:'세로아님(추후)',qr}; }
+  if(qr.cy<=h/2) return {digits:null,mode:'세로아님(추후)',qr};
+  const x0=qr.cx-2367,y0=qr.cy-3344,x1=qr.cx+97,y1=qr.cy-52;
   const PC=2,PR=4,SR=2,SC=4;
-  const dots=detectDots300(gray,w,h);
-  const [x0,y0,x1,y1]=bbox;const pw=(x1-x0)/PC,ph=(y1-y0)/PR;
-  const best=new Array(8).fill(null);
-  for(const d of dots){if(!(x0<=d.cx&&d.cx<x1&&y0<=d.cy&&d.cy<y1))continue;
-    const pc=Math.floor((d.cx-x0)/pw),pr=Math.floor((d.cy-y0)/ph),pi=pr*PC+pc;
-    if(!best[pi]||d.score>best[pi].score)best[pi]=d;}
-  const digits=[],scores=[],zoneBest={};
-  for(let pi=0;pi<8;pi++){const b=best[pi];const sc=new Array(8).fill(0);
-    if(!b){digits.push(-1);scores.push(sc);continue;}
-    const relx=(b.cx-x0-(pi%PC)*pw)/pw,rely=(b.cy-y0-((pi/PC)|0)*ph)/ph;
-    const scc=Math.min(SC-1,Math.floor(relx*SC)),srr=Math.min(SR-1,Math.floor(rely*SR));
-    const si=srr*SC+scc;digits.push(si);sc[si]=b.score;scores.push(sc);
-    zoneBest[pi]={cx:b.cx,cy:b.cy,pi,si,score:b.score};}
-  const candidates=dots.slice(0,300).map(d=>({cx:d.cx,cy:d.cy,area:d.area,score:d.score}));
-  return {digits,scores,candidates,zoneBest,mode:'QR자동정렬',region:{x:x0,y:y0,w:x1-x0,h:y1-y0},qr};
+  const pw=(x1-x0)/PC,ph=(y1-y0)/PR;
+  const all=detectDotsV6(gray,w,h);
+  const cs=all.filter(d=>x0<=d.cx&&d.cx<x1&&y0<=d.cy&&d.cy<y1&&!(Math.abs(d.cx-qr.cx)<220&&Math.abs(d.cy-qr.cy)<220));
+  for(const d of cs){d.pi=Math.floor((d.cy-y0)/ph)*PC+Math.floor((d.cx-x0)/pw);}
+  const trz={};
+  for(const d of cs){if(d.rd<=0.03&&d.area>=6&&d.area<=40&&d.cont>=100&&d.dim<=12){
+    if(!trz[d.pi]||d.cont>trz[d.pi].cont)trz[d.pi]=d;}}
+  const med=a=>{if(!a.length)return null;a=a.slice().sort((u,v)=>u-v);
+    return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2;};
+  const tv=Object.values(trz);
+  const mc=med(tv.map(d=>d.cont))??180, ma=med(tv.map(d=>d.area))??14;
+  const zone=[[],[],[],[],[],[],[],[]];
+  for(const d of cs){
+    const dc=d.cont-mc;
+    const sim=(dc>0?Math.exp(-dc/30):Math.exp(dc/80))*Math.exp(-Math.abs(d.area-ma)/10);
+    d.s=sim*Math.pow(1-Math.min(d.rd,0.3),3);
+    zone[d.pi].push(d);
+  }
+  const siOf=o=>{const rx=(o.cx-x0-(o.pi%PC)*pw)/pw,ry=(o.cy-y0-((o.pi/PC)|0)*ph)/ph;
+    return Math.min(SR-1,Math.floor(ry*SR))*SC+Math.min(SC-1,Math.floor(rx*SC));};
+  const digits=[],scores=[],zoneBest={},margins=[];
+  for(let pi=0;pi<8;pi++){
+    const zs=zone[pi].sort((a,b)=>b.s-a.s);
+    const sc=new Array(8).fill(0);
+    if(!zs.length){digits.push(-1);scores.push(sc);margins.push(0);continue;}
+    const b=zs[0];const si=siOf(b);
+    digits.push(si);sc[si]=b.s;scores.push(sc);
+    zoneBest[pi]={cx:Math.round(b.cx),cy:Math.round(b.cy),pi,si,score:b.s};
+    let m=1.0;
+    for(let k=1;k<zs.length;k++){if(siOf(zs[k])!==si){m=Math.max(0,1-zs[k].s/b.s);break;}}
+    margins.push(m);
+  }
+  const det=digits.filter(d=>d>=0).length;
+  const confidence=Math.round(100*(0.4*det/8+0.6*(margins.reduce((a,b)=>a+b,0)/8)));
+  const candidates=cs.slice().sort((a,b)=>b.s-a.s).slice(0,300).map(d=>({cx:Math.round(d.cx),cy:Math.round(d.cy),area:d.area,score:d.s}));
+  return {digits,scores,candidates,zoneBest,confidence,mode:'QR자동정렬 v6',region:{x:x0,y:y0,w:x1-x0,h:y1-y0},qr};
 }
 
 function analyze() {
