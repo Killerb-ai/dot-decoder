@@ -1,0 +1,39 @@
+[
+  {
+    "id": "sample_2",
+    "file": "sample_2(원본).jpg",
+    "answer": "sample_2(답안지).jpg",
+    "digits": [2, 6, 2, 6, 5, 2, 1, 0],
+    "points": [[249,79],[646,218],[250,358],[647,499],[153,779],[647,639],[153,920],[450,920]],
+    "tolerance": 3,
+    "minimumLocated": 8
+  },
+  {
+    "id": "sample_6",
+    "file": "sample_6(원본).jpg",
+    "answer": "sample_6(답안지).jpg",
+    "digits": [5, 6, 1, 6, 1, 2, 7, 0],
+    "points": [[477,685],[2027,686],[478,1122],[2030,1562],[480,1998],[2031,2000],[1104,3316],[1413,2877]],
+    "tolerance": 6,
+    "minimumLocated": 8
+  },
+  {
+    "id": "sample_7",
+    "file": "sample_7(원본).jpg",
+    "answer": "sample_7(답안지).jpg",
+    "digits": [3, 5, 2, null, 1, 2, 7, 0],
+    "points": [[1090,247],[1708,684],[780,1122],null,[478,1997],[2024,1997],[1100,3313],[1410,2876]],
+    "tolerance": 8,
+    "minimumLocated": 5,
+    "note": "P3 has no unambiguous answer annotation. P2/P7 are unresolved text-overlap cases, not passing labels."
+  },
+  {
+    "id": "sample_8",
+    "file": "sample_8(원본).jpg",
+    "answer": "sample_8(답안지).jpg",
+    "digits": [2, 2, 5, 0, 2, 2, 7, 0],
+    "points": [[778,233],[2018,234],[476,1546],[1401,1108],[782,1984],[2022,1986],[1097,3302],[1406,2863]],
+    "tolerance": 6,
+    "minimumLocated": 8
+  }
+]

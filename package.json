@@ -1,0 +1,16 @@
+{
+  "name": "hidden-dot-decoder",
+  "version": "6.2.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/decoder.test.cjs",
+    "test:samples": "node tests/samples.cjs",
+    "test:variants": "node tests/variants.cjs",
+    "test:browser": "node tests/browser.cjs",
+    "test:qr": "node tests/qr.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "sharp": "0.35.4"
+  }
+}

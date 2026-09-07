@@ -6,18 +6,18 @@
   <title>점은닉 디코더 — 문건 식별코드 분석기</title>
   <style>
     :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --surface2: #22263a;
-      --border: #2e3350;
-      --accent: #5b7cfa;
-      --accent2: #7c3aed;
+      --bg: #17191c;
+      --surface: #202326;
+      --surface2: #292d31;
+      --border: #42474d;
+      --accent: #34b3a1;
+      --accent2: #439bbd;
       --green: #22c55e;
       --yellow: #f59e0b;
       --red: #ef4444;
       --text: #e2e8f0;
-      --muted: #7c8db5;
-      --radius: 10px;
+      --muted: #a2abb5;
+      --radius: 8px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -66,6 +66,7 @@
     }
     .panel-right {
       flex: 1;
+      min-width: 0;
       display: flex; flex-direction: column;
       overflow: hidden;
     }
@@ -74,8 +75,8 @@
       min-height: 150px;
       position: relative;
       overflow: auto;
-      background: #080b14;
-      display: flex; align-items: flex-start; justify-content: center;
+      background: #131517;
+      display: flex; align-items: flex-start; justify-content: flex-start;
       padding: 48px 16px 16px;
     }
     .zoom-toolbar {
@@ -104,12 +105,12 @@
       font-size: 12px;
     }
     .result-bar {
-      height: 90px;
+      min-height: 100px;
       flex-shrink: 0;
       background: var(--surface);
       border-top: 1px solid var(--border);
       padding: 12px 20px;
-      display: flex; align-items: center; gap: 20px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
     }
 
     /* Subzone grid panel */
@@ -133,7 +134,7 @@
     }
     .subzone-panel-title {
       font-size: 11px; text-transform: uppercase;
-      letter-spacing: .08em; color: var(--accent); font-weight: 700;
+      letter-spacing: 0; color: var(--accent); font-weight: 700;
     }
     .subzone-panel-hint {
       font-size: 10px; color: var(--muted);
@@ -227,7 +228,7 @@
     .section { display: flex; flex-direction: column; gap: 8px; }
     .section-title {
       font-size: 11px; text-transform: uppercase;
-      letter-spacing: .08em; color: var(--muted); font-weight: 600;
+      letter-spacing: 0; color: var(--muted); font-weight: 600;
     }
 
     /* Upload zone */
@@ -315,7 +316,7 @@
       font-size: 24px; font-weight: 700;
       color: var(--green);
       font-family: monospace;
-      letter-spacing: .1em;
+      letter-spacing: 0;
     }
     .result-actions {
       display: flex;
@@ -416,48 +417,29 @@
       font-size: 11px; color: var(--muted);
       padding: 4px 0;
     }
-
-    /* ── 카메라 촬영 버튼 (모바일) ── */
-    #cameraInput { display: none; }
-    .camera-btn {
-      display: none;               /* 데스크톱 숨김, 모바일 표시 */
-      width: 100%;
-      margin-top: 8px;
-      padding: 14px 12px;
-      border: none; border-radius: var(--radius);
-      background: var(--accent); color: #fff;
-      font-size: 15px; font-weight: 700; cursor: pointer;
-      align-items: center; justify-content: center; gap: 8px;
-      -webkit-tap-highlight-color: transparent;
+    .digit-box.review { border-color: var(--yellow); }
+    .digit-box.review .d-num { color: var(--yellow); }
+    .code-display { width: 100%; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .digit-box { width: auto; min-width: 0; height: 48px; }
+    .subzone-inspector { flex-wrap: wrap; }
+    .subzone-inspector-canvas { max-width: 100%; height: auto; aspect-ratio: 3 / 2; }
+    #confirmSubzoneBtn { width: auto; align-self: flex-start; }
+    .canvas-wrap { flex-shrink: 0; margin: auto; }
+    button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .camera-btn { display: none; }
+    @media (max-width: 760px) {
+      .camera-btn { display: block; }
+      .main { flex-direction: column; height: auto; overflow: visible; }
+      #decoderTab { display: flex; }
+      .panel-left { width: 100%; min-width: 0; max-height: 330px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .panel-right { min-height: 700px; }
+      .canvas-area { flex: none; height: 450px; }
+      .result-bar { padding: 12px; gap: 12px; }
+      .result-bar > div[style="flex:1"] { display: none; }
+      .stat-val { font-size: 16px; }
+      .digit-box .d-idx { font-size: 8px; }
+      .header { padding: 12px 16px; }
     }
-    .camera-btn:active { filter: brightness(0.92); }
-
-    /* ── 모바일 반응형 (≤768px) ── */
-    @media (max-width: 768px) {
-      .header { flex-wrap: wrap; padding: 10px 12px; height: auto; gap: 8px; }
-      .header-badge { font-size: 10px; order: 3; width: 100%; white-space: normal; }
-      .main { flex-direction: column; height: auto; min-height: calc(100vh - 65px); overflow: visible; }
-      .panel-left {
-        width: 100%; min-width: 0; max-width: 100%;
-        border-right: none; border-bottom: 1px solid var(--border);
-        overflow-y: visible; padding: 14px;
-      }
-      .panel-right { min-height: 60vh; }
-      .canvas-area { min-height: 320px; padding: 44px 8px 8px; }
-      .camera-btn { display: flex; }            /* 모바일에서 노출 */
-      .upload-zone { padding: 18px 10px; }
-      .region-fields { grid-template-columns: 1fr 1fr; }
-      .stats-row, .stat { font-size: 12px; }
-      /* 터치 타깃 키우기 */
-      .btn, .toggle, select, input[type=number] { min-height: 40px; }
-      .zoom-toolbar { top: 8px; right: 8px; }
-    }
-    /* 아주 좁은 화면 */
-    @media (max-width: 420px) {
-      .header-title { font-size: 16px; }
-      .canvas-area { min-height: 260px; }
-    }
-
   </style>
 </head>
 <body>
@@ -468,7 +450,7 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v6.1 · 점프로파일 일관성 검출 (3샘플 24/24) · 최종 업데이트 2026-06-10 (KST)</div>
+  <div class="header-badge">v6.2</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
@@ -486,8 +468,8 @@
         </div>
       </div>
       <input type="file" id="fileInput" accept="image/*">
-      <button type="button" class="camera-btn" id="cameraBtn">📷 사진 촬영</button>
-      <input type="file" id="cameraInput" accept="image/*" capture="environment">
+      <button type="button" class="btn btn-primary camera-btn" id="cameraBtn">사진 촬영</button>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
     </div>
 
     <hr class="divider">
@@ -525,10 +507,6 @@
     <input type="hidden" id="primaryCols" value="2">
     <input type="hidden" id="subRows" value="2">
     <input type="hidden" id="subCols" value="4">
-    <input type="hidden" id="darkThreshSlider" value="100">
-    <input type="hidden" id="bgPctSlider" value="88">
-    <input type="hidden" id="brightThreshSlider" value="220">
-    <input type="hidden" id="minCircSlider" value="20">
 
     <hr class="divider">
 
@@ -545,10 +523,6 @@
       <div class="toggle-row">
         <span style="font-size:12px; color:var(--muted)">감지 점 표시</span>
         <div class="toggle on" id="showDotsToggle"></div>
-      </div>
-      <div class="toggle-row">
-        <span style="font-size:12px; color:var(--muted)">점수 히트맵</span>
-        <div class="toggle" id="showHeatToggle"></div>
       </div>
       <div class="toggle-row">
         <span style="font-size:12px; color:var(--muted)">세부분할 확대</span>
@@ -572,8 +546,8 @@
 
     <hr class="divider">
 
-    <div id="analyzeProgress">분석 중...</div>
-    <button class="btn btn-primary" id="analyzeBtn">분석 시작</button>
+    <div id="analyzeProgress" role="status" aria-live="polite">분석 중...</div>
+    <button class="btn btn-primary" id="analyzeBtn" disabled>분석 시작</button>
     <button class="btn btn-secondary" id="resetBtn">↺ 초기화</button>
   </div>
 
@@ -603,11 +577,11 @@
       </div>
       <div class="stat">
         <div class="stat-val" id="statConf">—</div>
-        <div class="stat-label">신뢰도</div>
+        <div class="stat-label" title="정답 확률이 아닌 자동 판독의 상대 점수">판독 점수</div>
       </div>
       <div class="stat">
         <div class="stat-val" id="statAlgo">—</div>
-        <div class="stat-label">알고리즘</div>
+        <div class="stat-label">검토 필요 / 수동 보정</div>
       </div>
 
       <div style="flex:1"></div>
@@ -630,7 +604,7 @@
       <div class="subzone-panel-header">
         <span class="subzone-panel-title">세부분할 확대</span>
         <span style="margin-left:auto; font-size:10px; color:var(--muted)">
-          <span style="color:var(--green)">■</span> 감지됨
+          <span style="color:var(--green)">■</span> 선택 후보
           <span style="color:var(--yellow); margin-left:6px">■</span> 차점수
         </span>
       </div>
@@ -638,6 +612,7 @@
       <div class="subzone-inspector" id="subzoneInspector">
         <canvas class="subzone-inspector-canvas" id="subzoneInspectorCanvas" width="360" height="240"></canvas>
         <div class="subzone-inspector-meta" id="subzoneInspectorMeta"></div>
+        <button class="btn btn-secondary" id="confirmSubzoneBtn" type="button" disabled>이 후보로 보정</button>
       </div>
     </div>
   </div>
@@ -646,7 +621,7 @@
 
 <script>
 // ============================================================
-//  CORE ALGORITHM v4.8 — 보강 희소 중심점 검출 (Sparse Center Dot)
+//  CORE ALGORITHM v6.2: sparse pixels with cross-zone lattice validation.
 //  특허 KR 10-1989170 기반
 //  고정 그리드: P_ROWS=4, P_COLS=2, S_ROWS=2, S_COLS=4
 // ============================================================
@@ -664,11 +639,12 @@ let state = {
   scores: null,       // [pCount][subCount] 서브존 점수
   candidates: null,   // 전체 점 후보 배열
   zoneBest: null,     // 기본분할별 최우수 후보
+  autoResult: null,
+  cellBest: null,
   autoDetect: true,
   showPrimary: true,
   showSub: true,
   showDots: true,
-  showHeat: false,
   showSubzonePanel: false,
   manualMode: false,
   manualMarks: [],
@@ -680,6 +656,7 @@ const mainCanvas = document.getElementById('mainCanvas');
 const overlayCanvas = document.getElementById('overlayCanvas');
 const ctx = mainCanvas.getContext('2d');
 const octx = overlayCanvas.getContext('2d');
+let revision = 0, loadVersion = 0, analysisTimer = null, analysisWorker = null, imageUrl = null;
 
 // ============================================================
 //  알고리즘: 희소 중심점 검출
@@ -691,7 +668,8 @@ function toGrayFloat(imageData) {
   const n = imageData.width * imageData.height;
   const gray = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+    const alpha = data[i*4+3] / 255;
+    gray[i] = alpha * (0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2]) + (1 - alpha) * 255;
   }
   return gray;
 }
@@ -946,13 +924,11 @@ const SPARSE_FAINT_OPTIONS = {
 };
 
 const ULTRA_FAINT_OPTIONS = {
-  maxGray: 215,
+  maxGray: 230,
   maxArea: 8,
   radiusScale: 0.26,
   windowScale: 1.55,
   centerSigma: 0.95,
-  targetGray: 203,
-  graySigma: 11,
   areaCenter: 1.8,
   areaSigma: 2,
   circularityPower: 0.5,
@@ -962,9 +938,6 @@ const ULTRA_FAINT_OPTIONS = {
   isolationScale: 70,
   isolationFloor: 0.2,
   localRadius: 16,
-  minOverrideScore: 240,
-  strongOverrideScore: 330,
-  minOverrideRatio: 2.2,
 };
 
 const LINE_BOUND_OPTIONS = {
@@ -977,8 +950,6 @@ const LINE_BOUND_OPTIONS = {
   radiusScale: 0.26,
   windowScale: 1.6,
   centerSigma: 0.95,
-  targetGray: 190,
-  graySigma: 55,
   areaCenter: 18,
   areaSigma: 22,
   aspectSigma: 9,
@@ -988,14 +959,12 @@ const LINE_BOUND_OPTIONS = {
   isolationScale: 18,
   isolationFloor: 0.2,
   localRadius: 16,
-  reinforceScore: 140,
-  overrideScore: 240,
 };
 
-function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
+function analyzeSparsePass(imageData, region, darkThresh, bgPct, options, sharedGray) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
-  const gray = toGrayFloat(imageData);
+  const gray = sharedGray || toGrayFloat(imageData);
   const candidateMaxGray = Math.max(options.maxGray, darkThresh + 40);
   const darkDotCandidates = findCompactDarkCandidates(gray, w, h, candidateMaxGray, 1, options.maxArea);
 
@@ -1097,10 +1066,10 @@ function analyzeSparsePass(imageData, region, darkThresh, bgPct, options) {
   return { digits, scores: allScores, candidates: darkDotCandidates, zoneBest };
 }
 
-function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS) {
+function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS, sharedGray) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
-  const gray = toGrayFloat(imageData);
+  const gray = sharedGray || toGrayFloat(imageData);
   const candidates = findCompactDarkCandidates(gray, w, h, options.maxGray, 1, options.maxArea);
 
   const pW = rw / P_COLS, pH = rh / P_ROWS;
@@ -1140,7 +1109,7 @@ function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS)
             if (centerDist > centerRadius * options.windowScale) continue;
 
             const local = sampleLocalStats(gray, w, h, c.cx, c.cy, options.localRadius, options.maxGray);
-            const grayWeight = Math.exp(-Math.pow((c.meanGray - options.targetGray) / options.graySigma, 2));
+            const grayWeight = 1 - Math.exp(-Math.max(0, local.mean - c.meanGray) / 55);
             const centerWeight = Math.exp(-Math.pow(centerDist / (centerRadius * options.centerSigma), 2));
             const sizeScore = Math.exp(-Math.pow((c.area - options.areaCenter) / options.areaSigma, 2));
             const circularityScore = Math.pow(c.circularity, options.circularityPower);
@@ -1190,10 +1159,10 @@ function analyzeUltraFaintPass(imageData, region, options = ULTRA_FAINT_OPTIONS)
   return { digits, scores: allScores, candidates, zoneBest };
 }
 
-function analyzeLineBoundPass(imageData, region, options = LINE_BOUND_OPTIONS) {
+function analyzeLineBoundPass(imageData, region, options = LINE_BOUND_OPTIONS, sharedGray) {
   const w = imageData.width, h = imageData.height;
   const { x: rx, y: ry, w: rw, h: rh } = region;
-  const gray = toGrayFloat(imageData);
+  const gray = sharedGray || toGrayFloat(imageData);
   const candidates = findFlexibleDarkCandidates(gray, w, h, options.maxGray, options);
 
   const pW = rw / P_COLS, pH = rh / P_ROWS;
@@ -1233,7 +1202,7 @@ function analyzeLineBoundPass(imageData, region, options = LINE_BOUND_OPTIONS) {
             if (centerDist > centerRadius * options.windowScale) continue;
 
             const local = sampleLocalStats(gray, w, h, c.cx, c.cy, options.localRadius, options.maxGray);
-            const grayWeight = Math.exp(-Math.pow((c.meanGray - options.targetGray) / options.graySigma, 2));
+            const grayWeight = 1 - Math.exp(-Math.max(0, local.mean - c.meanGray) / 55);
             const centerWeight = Math.exp(-Math.pow(centerDist / (centerRadius * options.centerSigma), 2));
             const sizeScore = Math.exp(-Math.pow((c.area - options.areaCenter) / options.areaSigma, 2));
             const aspectScore = 0.35 + 0.65 * Math.exp(-Math.pow((Math.max(1, c.aspect) - 1) / options.aspectSigma, 2));
@@ -1284,6 +1253,112 @@ function analyzeLineBoundPass(imageData, region, options = LINE_BOUND_OPTIONS) {
   return { digits, scores: allScores, candidates, zoneBest };
 }
 
+// Fit an affine lattice to actual pixels, never create a dot at a predicted location.
+function fitLattice(points) {
+  const matrix = Array.from({ length: 3 }, () => Array(5).fill(0));
+  for (const p of points) {
+    const row = [p.u, p.v, 1];
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) matrix[i][j] += row[i] * row[j];
+      matrix[i][3] += row[i] * p.nx;
+      matrix[i][4] += row[i] * p.ny;
+    }
+  }
+  for (let i = 0; i < 3; i++) {
+    let pivot = i;
+    for (let j = i + 1; j < 3; j++) if (Math.abs(matrix[j][i]) > Math.abs(matrix[pivot][i])) pivot = j;
+    if (Math.abs(matrix[pivot][i]) < 1e-8) return null;
+    [matrix[i], matrix[pivot]] = [matrix[pivot], matrix[i]];
+    const divisor = matrix[i][i];
+    for (let k = i; k < 5; k++) matrix[i][k] /= divisor;
+    for (let j = 0; j < 3; j++) {
+      if (j === i) continue;
+      const factor = matrix[j][i];
+      for (let k = i; k < 5; k++) matrix[j][k] -= factor * matrix[i][k];
+    }
+  }
+  const x = matrix.map(row => row[3]), y = matrix.map(row => row[4]);
+  if (Math.abs(x[0] - 1) > 0.15 || Math.abs(y[1] - 1) > 0.15 ||
+      Math.abs(x[1]) > 0.06 || Math.abs(y[0]) > 0.06 || Math.abs(x[2]) > 0.65 || Math.abs(y[2]) > 0.65) return null;
+  return { x, y };
+}
+
+function analyzeGridConsensus(imageData, region, candidates, sharedGray) {
+  const gray = sharedGray || toGrayFloat(imageData);
+  const sw = region.w / 8, sh = region.h / 8;
+  const scale = Math.max(1, Math.min(sw, sh) / 100);
+  const cells = Array.from({ length: 64 }, () => []);
+  const seen = new Set();
+  for (const c of candidates) {
+    const key = `${Math.round(c.cx)},${Math.round(c.cy)}`;
+    if (seen.has(key) || c.area > 16 * scale * scale) continue;
+    seen.add(key);
+    const nx = (c.cx - region.x) / sw, ny = (c.cy - region.y) / sh;
+    const col = Math.floor(nx), row = Math.floor(ny);
+    if (col < 0 || col >= 8 || row < 0 || row >= 8) continue;
+    const u = col + 0.5, v = row + 0.5;
+    if (Math.hypot(nx - u, ny - v) > 0.48) continue;
+    const local = sampleLocalStats(gray, imageData.width, imageData.height, c.cx, c.cy, Math.round(12 * scale), 215);
+    const contrast = local.mean - c.meanGray;
+    if (contrast < 18 || local.darkRatio > 0.24) continue;
+    const quality = (1 - Math.exp(-contrast / 55)) * Math.sqrt(c.circularity)
+      / (1 + local.darkRatio * 8) / (1 + c.area / (12 * scale * scale));
+    const pi = Math.floor(row / 2) * 2 + Math.floor(col / 4);
+    const si = row % 2 * 4 + col % 4;
+    cells[pi * 8 + si].push({ ...c, pi, si, u, v, nx, ny, quality, contrast });
+  }
+  // One seed per cell bounds deterministic RANSAC to at most 64 seeds.
+  for (const cell of cells) cell.sort((a, b) => b.quality - a.quality);
+  const pool = cells.flat();
+  const seeds = cells.flatMap(cell => cell.slice(0, 1));
+  const tx = Math.max(2, sw * 0.035) / sw, ty = Math.max(2, sh * 0.035) / sh;
+  function evaluate(model) {
+    const matches = Array(8).fill(null);
+    for (const p of pool) {
+      const dx = (p.nx - (model.x[0] * p.u + model.x[1] * p.v + model.x[2])) / tx;
+      const dy = (p.ny - (model.y[0] * p.u + model.y[1] * p.v + model.y[2])) / ty;
+      const residual = Math.hypot(dx, dy);
+      if (residual > 1) continue;
+      const merit = p.quality * Math.exp(-residual * residual / 2);
+      if (!matches[p.pi] || merit > matches[p.pi].merit) matches[p.pi] = { ...p, residual, merit };
+    }
+    const count = matches.filter(Boolean).length;
+    return { model, matches, count, quality: matches.reduce((sum, p) => sum + (p?.merit || 0), 0) };
+  }
+  const hypotheses = new Map();
+  for (let a = 0; a < seeds.length; a++) {
+    for (let b = a + 1; b < seeds.length; b++) {
+      if (seeds[a].pi === seeds[b].pi) continue;
+      for (let c = b + 1; c < seeds.length; c++) {
+        if (seeds[c].pi === seeds[a].pi || seeds[c].pi === seeds[b].pi) continue;
+        const model = fitLattice([seeds[a], seeds[b], seeds[c]]);
+        if (!model) continue;
+        let fit = evaluate(model);
+        if (fit.count < 6) continue;
+        const refined = fitLattice(fit.matches.filter(Boolean));
+        if (refined) fit = evaluate(refined);
+        if (fit.count < 6) continue;
+        const signature = fit.matches.map(p => p?.si ?? '?').join('');
+        const prev = hypotheses.get(signature);
+        if (!prev || fit.quality > prev.quality) hypotheses.set(signature, fit);
+      }
+    }
+  }
+  const ranked = [...hypotheses.values()].sort((a, b) => b.count - a.count || b.quality - a.quality);
+  if (!ranked.length) return null;
+  const best = ranked[0];
+  const competitors = ranked.slice(1).filter(fit => fit.count === best.count && fit.quality >= best.quality * 0.8);
+  best.ambiguous = best.matches.map((point, pi) => competitors.some(fit => fit.matches[pi]?.si !== point?.si) ||
+    pool.some(p => {
+      if (!point || p.pi !== pi || p.si === point.si) return false;
+      const dx = (p.nx - (best.model.x[0] * p.u + best.model.x[1] * p.v + best.model.x[2])) / tx;
+      const dy = (p.ny - (best.model.y[0] * p.u + best.model.y[1] * p.v + best.model.y[2])) / ty;
+      return dx * dx + dy * dy <= 1 && p.quality * Math.exp(-(dx * dx + dy * dy) / 2) >= point.merit * 0.8;
+    }));
+  best.cells = cells;
+  return best;
+}
+
 function getScoreStats(scores) {
   const order = scores.map((score, idx) => ({ score, idx }))
     .sort((a, b) => b.score - a.score);
@@ -1301,373 +1376,128 @@ function getScoreStats(scores) {
 }
 
 function combineAnalysisPasses(base, faint, ultra, lineBound) {
-  const digits = [];
-  const scores = [];
+  const digits = [], scores = [], sources = [], certainties = [];
   const zoneBest = {};
-  const sources = [];
-  const certainties = [];
-  let usedFaint = 0;
-  let usedUltra = 0;
-  let usedLineBound = 0;
-
-  for (let pi = 0; pi < P_ROWS * P_COLS; pi++) {
-    const baseStats = getScoreStats(base.scores[pi] || []);
-    const faintStats = getScoreStats(faint.scores[pi] || []);
-    const ultraStats = getScoreStats(ultra.scores[pi] || []);
-    const lineStats = getScoreStats(lineBound.scores[pi] || []);
-
-    let selected = base;
-    let selectedStats = baseStats;
-    let source = 'base';
-
-    const faintIsClearer =
-      faintStats.best > 0 &&
-      (
-        baseStats.best <= 0 ||
-        faintStats.ratio >= baseStats.ratio + 1.2 ||
-        (baseStats.ratio < 1.7 && faintStats.ratio >= baseStats.ratio * 1.15) ||
-        (baseStats.best < 40 && faintStats.best > baseStats.best * 8)
-      );
-
-    if (faintIsClearer) {
-      selected = faint;
-      selectedStats = faintStats;
-      source = 'faint';
-      usedFaint++;
+  for (let pi = 0; pi < 8; pi++) {
+    const b = getScoreStats(base.scores[pi]), f = getScoreStats(faint.scores[pi]);
+    const u = getScoreStats(ultra.scores[pi]);
+    let selected = base, stats = b, source = 'base';
+    if (f.best > 0 && (b.best <= 0 || f.ratio >= b.ratio + 1.2 ||
+        (b.ratio < 1.7 && f.ratio >= b.ratio * 1.15) || (b.best < 40 && f.best > b.best * 8))) {
+      selected = faint; stats = f; source = 'faint';
     }
-
-    const conventionalDisagree = baseStats.digit !== faintStats.digit;
-    const conventionalWeak = selectedStats.ratio < 2 || selectedStats.best < 160;
-    const ultraIsClean =
-      ultraStats.best >= ULTRA_FAINT_OPTIONS.minOverrideScore &&
-      ultraStats.ratio >= ULTRA_FAINT_OPTIONS.minOverrideRatio;
-    const ultraIsStrong = ultraStats.best >= ULTRA_FAINT_OPTIONS.strongOverrideScore;
-
-    if (ultraIsClean && (conventionalDisagree || conventionalWeak || ultraIsStrong)) {
-      selected = ultra;
-      selectedStats = ultraStats;
-      source = 'ultra';
-      usedUltra++;
+    if (u.best >= 240 && u.ratio >= 2.2 && (stats.best < 160 || stats.ratio < 2)) {
+      selected = ultra; stats = u; source = 'ultra';
     }
-
-    const lineAgreesWithSelected =
-      lineStats.digit === selectedStats.digit &&
-      lineStats.best >= LINE_BOUND_OPTIONS.reinforceScore;
-    const lineAgreesWithFaint =
-      lineStats.digit === faintStats.digit &&
-      lineStats.best >= LINE_BOUND_OPTIONS.overrideScore;
-    const lineCanRecoverWeakZone =
-      selectedStats.best < 180 ||
-      selectedStats.ratio < 1.8 ||
-      baseStats.digit !== faintStats.digit;
-
-    if (source !== 'ultra' && lineAgreesWithFaint && lineCanRecoverWeakZone) {
-      selected = faint;
-      selectedStats = faintStats;
-      source = 'faint+line';
-      usedFaint++;
-      usedLineBound++;
-    } else if (lineAgreesWithSelected) {
-      source = `${source}+line`;
-      usedLineBound++;
-    }
-
-    const mergedScores = [...(selected.scores[pi] || [])];
-    if (
-      lineStats.digit === selectedStats.digit &&
-      lineStats.best >= LINE_BOUND_OPTIONS.reinforceScore &&
-      mergedScores[selectedStats.digit] !== undefined
-    ) {
-      mergedScores[selectedStats.digit] += lineStats.best * 0.9;
-    }
-
-    digits.push(selectedStats.digit);
-    scores.push(mergedScores);
-    zoneBest[pi] = {
-      ...(selected.zoneBest[pi] || {}),
-      pi,
-      si: selectedStats.digit,
-      source
-    };
-    if (
-      lineStats.digit === selectedStats.digit &&
-      lineStats.best >= LINE_BOUND_OPTIONS.overrideScore &&
-      lineBound.zoneBest[pi]
-    ) {
-      zoneBest[pi] = {
-        ...lineBound.zoneBest[pi],
-        pi,
-        si: selectedStats.digit,
-        source
-      };
-    }
-
-    const agreementCount = [
-      baseStats.best >= 80 && baseStats.digit === selectedStats.digit,
-      faintStats.best >= 80 && faintStats.digit === selectedStats.digit,
-      ultraStats.best >= 200 && ultraStats.digit === selectedStats.digit,
-      lineStats.best >= LINE_BOUND_OPTIONS.reinforceScore && lineStats.digit === selectedStats.digit
-    ].filter(Boolean).length;
-    const mergedStats = getScoreStats(mergedScores);
-    const strongSingleEvidence =
-      mergedStats.best >= 700 ||
-      (mergedStats.best >= 450 && mergedStats.ratio >= 2.2) ||
-      (mergedStats.best >= 300 && mergedStats.ratio >= 3.5);
-    const answerBackedEvidence =
-      agreementCount >= 2 &&
-      mergedStats.best >= 250 &&
-      (mergedStats.ratio >= 1.4 || lineStats.best >= LINE_BOUND_OPTIONS.overrideScore);
-    certainties.push(strongSingleEvidence || answerBackedEvidence ? 1 : calcZoneConfidence(mergedScores));
+    const point = selected.zoneBest[pi];
+    // Same cell is not same evidence: line/text fragments cannot boost or replace a point.
+    const agreeing = [base, faint, ultra, lineBound].filter(pass => {
+      const other = pass.zoneBest[pi];
+      return point && other && pass.digits[pi] === stats.digit &&
+        Math.hypot(other.cx - point.cx, other.cy - point.cy) <= 3;
+    }).length;
+    digits.push(stats.digit);
+    scores.push([...selected.scores[pi]]);
+    zoneBest[pi] = stats.digit >= 0 ? { ...point, source } : null;
+    certainties.push(calcZoneConfidence(selected.scores[pi]) * (agreeing >= 2 ? 0.85 : 0.6));
     sources.push(source);
   }
+  return { digits, scores, zoneBest, sources, certainties,
+    candidates: [...base.candidates, ...faint.candidates, ...ultra.candidates] };
+}
 
-  return {
-    digits,
-    scores,
-    candidates: [...base.candidates, ...faint.candidates, ...ultra.candidates, ...lineBound.candidates],
-    zoneBest,
-    sources,
-    certainties,
-    usedFaint,
-    usedUltra,
-    usedLineBound
-  };
+function applyGridConsensus(result, grid, region) {
+  result.suggestedDigits = [...result.digits];
+  result.cellBest = Array.from({ length: 8 }, () => Array(8).fill(null));
+  if (!grid) {
+    for (let pi = 0; pi < 8; pi++) {
+      if (result.digits[pi] >= 0) result.cellBest[pi][result.digits[pi]] = result.zoneBest[pi];
+    }
+    return;
+  }
+  const sw = region.w / 8, sh = region.h / 8;
+  const tx = Math.max(2, sw * 0.035) / sw, ty = Math.max(2, sh * 0.035) / sh;
+  for (let pi = 0; pi < 8; pi++) {
+    result.scores[pi] = grid.cells.slice(pi * 8, pi * 8 + 8).map((cell, si) => {
+      let best = null;
+      for (const p of cell) {
+        const dx = (p.nx - (grid.model.x[0] * p.u + grid.model.x[1] * p.v + grid.model.x[2])) / tx;
+        const dy = (p.ny - (grid.model.y[0] * p.u + grid.model.y[1] * p.v + grid.model.y[2])) / ty;
+        const score = p.quality * Math.exp(-(dx * dx + dy * dy) / 2) * 1000;
+        if (!best || score > best.score) best = { ...p, score };
+      }
+      result.cellBest[pi][si] = best;
+      return best?.score || 0;
+    });
+    const point = grid.matches[pi];
+    result.digits[pi] = point?.si ?? -1;
+    result.zoneBest[pi] = point ? { ...point, source: 'grid' } : null;
+    result.sources[pi] = point ? 'grid' : 'missing';
+    result.certainties[pi] = point
+      ? (1 - Math.exp(-point.contrast / 35)) * Math.exp(-point.residual * point.residual / 2)
+        * (grid.count / 8) * (grid.ambiguous[pi] ? 0.35 : 1)
+      : 0;
+  }
+  result.gridSupport = grid.count;
+  result.gridAmbiguous = grid.ambiguous;
 }
 
 // ── 희소 중심점 메인 분석 함수 ──────────────
 // 기본/흐린점/초희미 고립점 패스를 영역별로 앙상블한다.
-function analyzeAnomaly(imageData, region, darkThresh, bgPct) {
-  { const _g = toGrayFloat(imageData); _lmW = imageData.width; _lmH = imageData.height;
-    _lineMaskCache = buildLineMask(_g, _lmW, _lmH, 210, Math.max(18, Math.round(Math.min(_lmW, _lmH) * 0.02))); }
-  const base = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_BASE_OPTIONS);
-  const faint = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_FAINT_OPTIONS);
-  const ultra = analyzeUltraFaintPass(imageData, region, ULTRA_FAINT_OPTIONS);
-  const lineBound = analyzeLineBoundPass(imageData, region, LINE_BOUND_OPTIONS);
-  const baseConf = calcConfidence(base.scores, base.digits);
-  const faintConf = calcConfidence(faint.scores, faint.digits);
-  const ultraConf = calcConfidence(ultra.scores, ultra.digits);
-  const lineConf = calcConfidence(lineBound.scores, lineBound.digits);
+function analyzeAnomaly(imageData, region, darkThresh = 100, bgPct = 88) {
+  region = normalizeRegion(region, imageData.width, imageData.height);
+  const gray = toGrayFloat(imageData);
+  _lmW = imageData.width; _lmH = imageData.height;
+  _lineMaskCache = buildLineMask(gray, _lmW, _lmH, 210, Math.max(18, Math.round(Math.min(_lmW, _lmH) * 0.02)));
+  const base = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_BASE_OPTIONS, gray);
+  const faint = analyzeSparsePass(imageData, region, darkThresh, bgPct, SPARSE_FAINT_OPTIONS, gray);
+  const ultra = analyzeUltraFaintPass(imageData, region, ULTRA_FAINT_OPTIONS, gray);
+  const lineBound = analyzeLineBoundPass(imageData, region, LINE_BOUND_OPTIONS, gray);
   const selected = combineAnalysisPasses(base, faint, ultra, lineBound);
+  // A dot may merge into a nearby stroke at a higher threshold; keep the intermediate component too.
+  selected.candidates = selected.candidates.concat(findCompactDarkCandidates(gray, imageData.width, imageData.height, 215, 1, 30));
+  const grid = analyzeGridConsensus(imageData, region, selected.candidates, gray);
+  applyGridConsensus(selected, grid, region);
+  selected.review = selected.digits.map((digit, pi) =>
+    digit < 0 || selected.certainties[pi] < 0.6 || Boolean(selected.gridAmbiguous?.[pi]));
   selected.confidence = calcEnsembleConfidence(selected);
-  selected.mode = selected.usedLineBound > 0
-    ? '희소점+선결합'
-    : selected.usedUltra > 0
-    ? '희소점+초희미'
-    : (selected.usedFaint > 0 ? '희소점 앙상블' : '희소점');
-  selected.alternates = {
-    base: { digits: base.digits, confidence: baseConf },
-    faint: { digits: faint.digits, confidence: faintConf },
-    ultra: { digits: ultra.digits, confidence: ultraConf },
-    lineBound: { digits: lineBound.digits, confidence: lineConf },
-    sources: selected.sources
-  };
+  selected.mode = grid ? '격자 검증' : '개별 후보';
   return selected;
 }
 
-// ── [레거시 호환] BFS는 analyzeAnomaly로 대체됨 ──
-function findDotCandidatesShape(gray, w, h, darkThresh, brightThresh, minArea, maxArea, minCirc) {
-  // 1. 중간 밝기 픽셀 마스크 생성
-  const mask = new Uint8Array(w * h);
-  for (let i = 0; i < gray.length; i++) {
-    mask[i] = (gray[i] >= darkThresh && gray[i] <= brightThresh) ? 1 : 0;
-  }
-
-  // 2. 2배 다운샘플링 (속도 향상)
-  const ds = 2;
-  const sW = Math.floor(w / ds);
-  const sH = Math.floor(h / ds);
-  const small = new Uint8Array(sW * sH);
-  for (let sy = 0; sy < sH; sy++) {
-    for (let sx = 0; sx < sW; sx++) {
-      small[sy * sW + sx] = mask[(sy * ds) * w + (sx * ds)];
-    }
-  }
-
-  // 3. BFS 연결성분 분석
-  const visited = new Uint8Array(sW * sH);
-  const candidates = [];
-
-  for (let sy = 0; sy < sH; sy++) {
-    for (let sx = 0; sx < sW; sx++) {
-      if (!small[sy * sW + sx] || visited[sy * sW + sx]) continue;
-
-      // BFS
-      const queue = [];
-      let qHead = 0;
-      queue.push(sy * sW + sx);
-      visited[sy * sW + sx] = 1;
-
-      let sumY = 0, sumX = 0;
-      let minY = sy, maxY = sy, minX = sx, maxX = sx;
-
-      while (qHead < queue.length) {
-        const idx = queue[qHead++];
-        const cy = Math.floor(idx / sW);
-        const cx = idx % sW;
-        sumY += cy; sumX += cx;
-        if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
-        if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
-
-        // 8방향 탐색
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dy === 0 && dx === 0) continue;
-            const ny = cy + dy, nx = cx + dx;
-            if (ny < 0 || ny >= sH || nx < 0 || nx >= sW) continue;
-            const nIdx = ny * sW + nx;
-            if (small[nIdx] && !visited[nIdx]) {
-              visited[nIdx] = 1;
-              queue.push(nIdx);
-            }
-          }
-        }
-      }
-
-      const compSize = queue.length;
-      // 원래 해상도 기준 넓이 추정
-      const area = compSize * ds * ds;
-      if (area < minArea || area > maxArea) continue;
-
-      // 중심점 (원래 좌표로 변환)
-      const cY = Math.round((sumY / compSize) * ds);
-      const cX = Math.round((sumX / compSize) * ds);
-
-      // 경계 박스 (원래 좌표)
-      const bboxH = (maxY - minY + 1) * ds;
-      const bboxW = (maxX - minX + 1) * ds;
-      const maxR = Math.max(bboxH, bboxW) / 2;
-
-      // 원형도: area / (π × maxR²)  — 완벽한 원 = 1.0
-      const circularity = maxR > 0 ? area / (Math.PI * maxR * maxR) : 0;
-      if (circularity < minCirc) continue;
-
-      const score = circularity * area;
-      candidates.push({
-        cx: cX, cy: cY, area, circularity, score,
-        bbox: [minX * ds, minY * ds, maxX * ds, maxY * ds]
-      });
-    }
-  }
-
-  // 점수 내림차순 정렬
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates;
-}
-
-// ── 형태기반 메인 분석 함수 ──────────────────────
-function analyzeShape(imageData, region, pRows, pCols, sRows, sCols, darkThresh, brightThresh, minCirc) {
-  const w = imageData.width, h = imageData.height;
-  const { x: rx, y: ry, w: rw, h: rh } = region;
-
-  const gray = toGrayFloat(imageData);
-
-  // 여러 임계값 조합 시도 (첫 번째 성공 시 중단)
-  const threshPairs = [
-    [darkThresh, brightThresh],
-    [darkThresh - 10, brightThresh + 5],
-    [darkThresh - 20, brightThresh + 10],
-    [Math.max(80, darkThresh - 30), Math.min(255, brightThresh + 15)],
-  ];
-
-  let candidates = [];
-  for (const [dt, bt] of threshPairs) {
-    candidates = findDotCandidatesShape(gray, w, h, dt, bt, 20, 3000, minCirc);
-    // 영역 내 후보가 충분하면 중단
-    const inRegion = candidates.filter(c =>
-      c.cx >= rx && c.cx <= rx+rw && c.cy >= ry && c.cy <= ry+rh
-    );
-    if (inRegion.length >= pRows * pCols) break;
-  }
-
-  const pW = rw / pCols, pH = rh / pRows;
-  const sW = pW / sCols, sH = pH / sRows;
-
-  // 각 기본분할 영역별 서브존 점수 누적
-  const zoneSubScores = {};  // pi -> si -> score
-  const zoneBest = {};       // pi -> best candidate
-
-  for (const c of candidates) {
-    const cx = c.cx, cy = c.cy;
-    if (cx < rx || cx > rx + rw || cy < ry || cy > ry + rh) continue;
-
-    const pc = Math.min(pCols - 1, Math.max(0, Math.floor((cx - rx) / pW)));
-    const pr = Math.min(pRows - 1, Math.max(0, Math.floor((cy - ry) / pH)));
-    const pi = pr * pCols + pc;
-
-    const sc = Math.min(sCols - 1, Math.max(0, Math.floor((cx - rx - pc * pW) / sW)));
-    const sr = Math.min(sRows - 1, Math.max(0, Math.floor((cy - ry - pr * pH) / sH)));
-    const si = sr * sCols + sc;
-
-    if (!zoneSubScores[pi]) zoneSubScores[pi] = {};
-    zoneSubScores[pi][si] = (zoneSubScores[pi][si] || 0) + c.score;
-
-    if (!zoneBest[pi] || c.score > zoneBest[pi].score) {
-      zoneBest[pi] = { ...c, pi, si };
-    }
-  }
-
-  // allScores 및 digits 구성
-  const allScores = [];
-  const digits = [];
-
-  for (let pr = 0; pr < pRows; pr++) {
-    for (let pc = 0; pc < pCols; pc++) {
-      const pi = pr * pCols + pc;
-      const scores = new Array(sRows * sCols).fill(0);
-
-      if (zoneSubScores[pi]) {
-        for (const [si, score] of Object.entries(zoneSubScores[pi])) {
-          scores[parseInt(si)] = score;
-        }
-      }
-
-      allScores.push(scores);
-
-      // 최고 점수 서브존 = 해당 자릿수
-      let maxS = -1, maxI = -1;
-      scores.forEach((s, i) => { if (s > maxS) { maxS = s; maxI = i; } });
-      digits.push(maxS > 0 ? maxI : -1);
-    }
-  }
-
-  return { digits, scores: allScores, candidates, zoneBest };
-}
-
-// ── 신뢰도 계산 ──────────────────────────────────
 function calcConfidence(scores, digits) {
   if (!scores || !digits) return 0;
-  let totalConf = 0;
-  let validCount = 0;
-  for (let pi = 0; pi < scores.length; pi++) {
-    const s = scores[pi];
+  let sum = 0;
+  for (let pi = 0; pi < 8; pi++) {
     const chosen = digits[pi];
-    if (chosen < 0 || !s || s.length === 0) continue;
-    const sorted = [...s].sort((a,b) => b-a);
-    if (sorted[0] <= 0) continue;
-    // 1위/2위 비율만 보면 단일 먼지 후보를 과신할 수 있어 절대 점수와 격차도 함께 본다.
-    const ratio = sorted.length > 1 && sorted[1] > 0
-      ? sorted[0] / sorted[1]
-      : (sorted[0] > 0 ? 10 : 0);
-    const ratioConf = clamp((ratio - 1) / 3, 0, 1);
-    const absoluteConf = clamp(sorted[0] / 280, 0, 1);
-    const marginConf = clamp((sorted[0] - (sorted[1] || 0)) / 220, 0, 1);
-    totalConf += 0.35 * ratioConf + 0.4 * absoluteConf + 0.25 * marginConf;
-    validCount++;
+    if (!Number.isInteger(chosen) || chosen < 0 || chosen > 7) continue;
+    const row = scores[pi] || [];
+    if (getScoreStats(row).digit !== chosen) continue;
+    sum += calcZoneConfidence(row);
   }
-  if (validCount === 0) return 0;
-  return Math.round((totalConf / validCount) * 100);
+  return Math.round(sum / 8 * 100);
+}
+
+function normalizeRegion(region, width, height) {
+  if (!region || ![region.x, region.y, region.w, region.h].every(Number.isFinite) ||
+      region.w <= 0 || region.h <= 0) throw new Error('분석 영역의 좌표와 크기를 확인하세요.');
+  const x = clamp(Math.floor(region.x), 0, width);
+  const y = clamp(Math.floor(region.y), 0, height);
+  const right = clamp(Math.ceil(region.x + region.w), 0, width);
+  const bottom = clamp(Math.ceil(region.y + region.h), 0, height);
+  if (right <= x || bottom <= y) throw new Error('분석 영역이 이미지 밖에 있습니다.');
+  return { x, y, w: right - x, h: bottom - y };
 }
 
 // ── 전체영역 자동 감지 ───────────────────────────
 function autoDetectRegion(imageData, margin = 10) {
-  const data = imageData.data;
+  const data = toGrayFloat(imageData);
   const w = imageData.width, h = imageData.height;
   let minX = w, maxX = 0, minY = h, maxY = 0;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      const gray = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      const gray = data[y * w + x];
       if (gray < 240) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
@@ -1678,15 +1508,15 @@ function autoDetectRegion(imageData, margin = 10) {
   }
 
   if (maxX <= minX || maxY <= minY) {
-    return { x: margin, y: margin, w: w - 2*margin, h: h - 2*margin };
+    return { x: 0, y: 0, w, h };
   }
 
   const pad = margin;
   return {
     x: Math.max(0, minX - pad),
     y: Math.max(0, minY - pad),
-    w: Math.min(w - Math.max(0, minX - pad), maxX - minX + 2*pad),
-    h: Math.min(h - Math.max(0, minY - pad), maxY - minY + 2*pad)
+    w: Math.min(w, maxX + pad + 1) - Math.max(0, minX - pad),
+    h: Math.min(h, maxY + pad + 1) - Math.max(0, minY - pad)
   };
 }
 
@@ -1703,7 +1533,9 @@ function addManualMark(canvasX, canvasY) {
   const pW = rw / pCols, pH = rh / pRows;
   const sW = pW / sCols, sH = pH / sRows;
 
-  if (canvasX < rx || canvasX > rx+rw || canvasY < ry || canvasY > ry+rh) return;
+  if (!Number.isFinite(canvasX) || !Number.isFinite(canvasY) ||
+      canvasX < rx || canvasX >= rx+rw || canvasY < ry || canvasY >= ry+rh) return;
+  if (analysisWorker || analysisTimer !== null) invalidateResult();
 
   const relX = canvasX - rx, relY = canvasY - ry;
   const pc = Math.min(Math.floor(relX / pW), pCols - 1);
@@ -1731,69 +1563,55 @@ function addManualMark(canvasX, canvasY) {
 
 function clearManualMarks() {
   state.manualMarks = [];
-  const pRows = parseInt(document.getElementById('primaryRows').value);
-  const pCols = parseInt(document.getElementById('primaryCols').value);
-  if (state.scores) {
-    // 자동 감지 결과 복원 (scores 기반)
-    const pCount = pRows * pCols;
-    state.digits = state.scores.map(s => {
-      let maxI = 0, maxV = -1;
-      s.forEach((v,i) => { if (v > maxV) { maxV = v; maxI = i; } });
-      return maxI;
-    });
-  } else {
-    state.digits = Array(pRows * pCols).fill(-1);
-  }
+  state.digits = state.autoResult ? [...state.autoResult.digits] : Array(8).fill(-1);
   updateResultDisplay();
   drawSubzoneGrid();
   drawOverlay();
 }
 
-// ── 결과 디스플레이 업데이트 ─────────────────────
 function updateResultDisplay() {
-  if (!state.digits) return;
-  const code = state.digits.map(d => d >= 0 ? d : '?').join('');
-  document.getElementById('resultCode').textContent = code;
+  const digits = state.digits || Array(8).fill(-1);
+  const valid = d => Number.isInteger(d) && d >= 0 && d <= 7;
+  const code = digits.map(d => valid(d) ? d : '?').join('');
+  const manual = new Set(state.manualMarks.map(mark => mark.pi));
+  const review = digits.map((d, pi) => !valid(d) || (!manual.has(pi) && (state.autoResult?.review?.[pi] ?? true)));
+  document.getElementById('resultCode').textContent = state.digits ? code : '--------';
   const copyBtn = document.getElementById('copyCodeBtn');
-  copyBtn.disabled = code.includes('?');
+  copyBtn.disabled = review.some(Boolean);
+  copyBtn.title = copyBtn.disabled ? '미검출 또는 검토가 필요한 영역이 있습니다.' : '코드 복사';
   copyBtn.textContent = '복사';
-
-  const codeDisplay = document.getElementById('codeDisplay');
-  codeDisplay.innerHTML = '';
-  state.digits.forEach((d, i) => {
+  document.getElementById('statZones').textContent = state.digits ? `${digits.filter(valid).length}/8` : '-';
+  document.getElementById('statConf').textContent = state.autoResult ? `${state.autoResult.confidence}/100` : '-';
+  document.getElementById('statAlgo').textContent = state.digits
+    ? `${review.filter(Boolean).length}개 / 수동 ${manual.size}` : '-';
+  const display = document.getElementById('codeDisplay');
+  display.innerHTML = '';
+  digits.forEach((d, pi) => {
     const box = document.createElement('div');
-    box.className = 'digit-box' + (d >= 0 ? ' detected' : '');
-    box.innerHTML = `<div class="d-num">${d >= 0 ? d : '?'}</div><div class="d-idx">P${i}</div>`;
-    codeDisplay.appendChild(box);
+    box.className = 'digit-box' + (valid(d) && !review[pi] ? ' detected' : ' review');
+    const label = manual.has(pi) ? '수동' : !valid(d) ? '미검출' : review[pi] ? '검토' : '자동';
+    box.title = `P${pi}: ${label}`;
+    box.innerHTML = `<div class="d-num">${valid(d) ? d : '?'}</div><div class="d-idx">P${pi} ${label}</div>`;
+    display.appendChild(box);
   });
 }
 
 function calcZoneConfidence(scores) {
-  if (!scores || scores.length === 0) return 0;
-  const sorted = [...scores].sort((a,b) => b-a);
-  if (sorted[0] <= 0) return 0;
-  const ratio = sorted.length > 1 && sorted[1] > 0
-    ? sorted[0] / sorted[1]
-    : (sorted[0] > 0 ? 10 : 0);
-  const ratioConf = clamp((ratio - 1) / 3, 0, 1);
-  const absoluteConf = clamp(sorted[0] / 280, 0, 1);
-  const marginConf = clamp((sorted[0] - (sorted[1] || 0)) / 220, 0, 1);
-  return 0.35 * ratioConf + 0.4 * absoluteConf + 0.25 * marginConf;
+  if (!scores?.length) return 0;
+  const { best, second } = getScoreStats(scores);
+  if (!(best > 0)) return 0;
+  const strength = 1 - Math.exp(-best / 280);
+  const separation = Math.sqrt(Math.max(0, 1 - second / best));
+  return strength * separation;
 }
 
 function calcEnsembleConfidence(result) {
-  // certainties(포화) 대신 실제 점수 격차 기반 신뢰도(calcConfidence) 사용 (v4.8)
-  let conf = calcConfidence(result?.scores, result?.digits);
-  // 선택된 점이 표선 위에 있으면 그 비율만큼 신뢰도 강등
-  if (result?.zoneBest) {
-    let onl = 0, n = 0;
-    for (const k in result.zoneBest) {
-      const z = result.zoneBest[k];
-      if (z && z.si >= 0 && z.score > 0) { n++; if (onLine(z.cx, z.cy)) onl++; }
-    }
-    if (n > 0) conf = Math.round(conf * (1 - 0.5 * (onl / n)));
+  if (!result?.certainties?.length) return calcConfidence(result?.scores, result?.digits);
+  let sum = 0;
+  for (let pi = 0; pi < 8; pi++) {
+    if (result.digits[pi] >= 0) sum += clamp(result.certainties[pi] || 0, 0, 1);
   }
-  return conf;
+  return Math.round(sum / 8 * 100);
 }
 
 function applyZoom(nextZoom) {
@@ -1858,7 +1676,6 @@ function drawSubzoneGrid() {
     const pr = Math.floor(pi / pCols);
     const pc = pi % pCols;
     const scores = state.scores[pi] || [];
-    const maxScore = Math.max(...scores, 0.0001);
 
     // 2위 점수 찾기
     const sorted = [...scores].sort((a,b) => b-a);
@@ -1902,8 +1719,9 @@ function drawSubzoneGrid() {
       tctx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, CELL_W, CELL_H);
 
       // 감지된 서브존이면 중앙에 크로스헤어 표시
-      if (isDetected) {
-        const cx2 = CELL_W / 2, cy2 = CELL_H / 2;
+      const point = state.manualMarks.find(m => m.pi === pi && m.si === si) || state.cellBest?.[pi]?.[si];
+      if (isDetected && point) {
+        const cx2 = (point.cx - cellX) / cellW * CELL_W, cy2 = (point.cy - cellY) / cellH * CELL_H;
         tctx.strokeStyle = 'rgba(34,197,94,0.9)';
         tctx.lineWidth = 1.5;
         tctx.beginPath();
@@ -1919,11 +1737,10 @@ function drawSubzoneGrid() {
 
       // 점수 레이블
       const score = scores[si] || 0;
-      const normalizedScore = Math.round((score / maxScore) * 100);
       const scoreLabel = document.createElement('div');
       scoreLabel.className = 'subzone-score-label';
       scoreLabel.style.color = isDetected ? '#22c55e' : isSecond ? '#f59e0b' : 'rgba(255,255,255,0.4)';
-      scoreLabel.textContent = `${normalizedScore}%`;
+      scoreLabel.textContent = `${Math.round(score)}`;
       cellDiv.appendChild(scoreLabel);
 
       // S번호 레이블
@@ -1932,33 +1749,17 @@ function drawSubzoneGrid() {
       siLabel.textContent = `${si}`;
       cellDiv.appendChild(siLabel);
 
-      // 클릭: 해당 P에서 이 S번호를 수동 지정
-      (function(capturedPi, capturedSi) {
-        cellDiv.addEventListener('click', () => {
-          if (!state.digits) {
-            state.digits = Array(totalPrimary).fill(-1);
-          }
-          state.digits[capturedPi] = capturedSi;
-
-          // 수동 마크에도 추가
-          const existing = state.manualMarks.findIndex(m => m.pi === capturedPi);
-          const { x: rx2, y: ry2, w: rw2, h: rh2 } = state.region;
-          const pW2 = rw2 / pCols, pH2 = rh2 / pRows;
-          const sW2 = pW2 / sCols, sH2 = pH2 / sRows;
-          const pr2 = Math.floor(capturedPi / pCols), pc2 = capturedPi % pCols;
-          const sr2 = Math.floor(capturedSi / sCols), sc2 = capturedSi % sCols;
-          const cx = rx2 + pc2*pW2 + sc2*sW2 + sW2/2;
-          const cy = ry2 + pr2*pH2 + sr2*sH2 + sH2/2;
-          const mark = { cx, cy, pi: capturedPi, si: capturedSi, digit: capturedSi };
-          if (existing >= 0) state.manualMarks[existing] = mark;
-          else state.manualMarks.push(mark);
-
-          state.selectedSubzone = { pi: capturedPi, si: capturedSi };
-          updateResultDisplay();
-          drawSubzoneGrid();
-          drawOverlay();
-        });
-      })(pi, si);
+      cellDiv.setAttribute('role', 'button');
+      cellDiv.tabIndex = 0;
+      cellDiv.title = `P${pi} / S${si} 확대`;
+      const inspect = () => {
+        state.selectedSubzone = { pi, si };
+        showSubzoneInspector(pi, si);
+      };
+      cellDiv.addEventListener('click', inspect);
+      cellDiv.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); inspect(); }
+      });
 
       row.appendChild(cellDiv);
     }
@@ -1978,73 +1779,37 @@ function hideSubzoneInspector() {
 
 function showSubzoneInspector(pi, si) {
   if (!state.imageData || !state.region) return;
-
-  const pRows = parseInt(document.getElementById('primaryRows').value);
-  const pCols = parseInt(document.getElementById('primaryCols').value);
-  const sRows = parseInt(document.getElementById('subRows').value);
-  const sCols = parseInt(document.getElementById('subCols').value);
-  const { x: rx, y: ry, w: rw, h: rh } = state.region;
-  const pW = rw / pCols, pH = rh / pRows;
-  const sW = pW / sCols, sH = pH / sRows;
-  const pr = Math.floor(pi / pCols), pc = pi % pCols;
-  const sr = Math.floor(si / sCols), sc = si % sCols;
-  const cellX = Math.floor(rx + pc*pW + sc*sW);
-  const cellY = Math.floor(ry + pr*pH + sr*sH);
-  const cellW = Math.max(1, Math.floor(sW));
-  const cellH = Math.max(1, Math.floor(sH));
-
-  const inspector = document.getElementById('subzoneInspector');
+  const best = state.cellBest?.[pi]?.[si];
+  const { x, y, w, h } = state.region;
+  const sw = w / 8, sh = h / 8;
+  const cellX = x + (pi % 2 * 4 + si % 4) * sw;
+  const cellY = y + (Math.floor(pi / 2) * 2 + Math.floor(si / 4)) * sh;
+  const cropW = Math.min(96, sw, sh * 1.5), cropH = cropW / 1.5;
+  const cropX = clamp((best?.cx ?? cellX + sw / 2) - cropW / 2, 0, state.imageData.width - cropW);
+  const cropY = clamp((best?.cy ?? cellY + sh / 2) - cropH / 2, 0, state.imageData.height - cropH);
   const canvas = document.getElementById('subzoneInspectorCanvas');
-  const meta = document.getElementById('subzoneInspectorMeta');
   const ictx = canvas.getContext('2d');
   ictx.imageSmoothingEnabled = false;
   ictx.clearRect(0, 0, canvas.width, canvas.height);
-  ictx.fillStyle = '#fff';
-  ictx.fillRect(0, 0, canvas.width, canvas.height);
-  ictx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, canvas.width, canvas.height);
-
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  ictx.strokeStyle = 'rgba(34,197,94,0.95)';
-  ictx.lineWidth = 2;
-  ictx.beginPath();
-  ictx.arc(centerX, centerY, Math.min(canvas.width, canvas.height) * 0.12, 0, Math.PI * 2);
-  ictx.stroke();
-  ictx.beginPath();
-  ictx.moveTo(centerX - 18, centerY); ictx.lineTo(centerX + 18, centerY);
-  ictx.moveTo(centerX, centerY - 18); ictx.lineTo(centerX, centerY + 18);
-  ictx.stroke();
-
-  const best = state.zoneBest?.[pi];
-  if (best && best.si === si) {
-    const bx = (best.cx - cellX) / cellW * canvas.width;
-    const by = (best.cy - cellY) / cellH * canvas.height;
-    ictx.strokeStyle = 'rgba(239,68,68,0.95)';
-    ictx.fillStyle = 'rgba(239,68,68,0.18)';
-    ictx.lineWidth = 2;
+  ictx.drawImage(mainCanvas, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+  if (best) {
+    const bx = (best.cx - cropX) / cropW * canvas.width;
+    const by = (best.cy - cropY) / cropH * canvas.height;
+    ictx.strokeStyle = '#e5484d';
+    ictx.lineWidth = 1.5;
     ictx.beginPath();
-    ictx.arc(bx, by, 18, 0, Math.PI * 2);
-    ictx.fill();
-    ictx.stroke();
-    ictx.beginPath();
-    ictx.moveTo(bx - 14, by); ictx.lineTo(bx + 14, by);
-    ictx.moveTo(bx, by - 14); ictx.lineTo(bx, by + 14);
+    ictx.arc(bx, by, 16, 0, Math.PI * 2);
     ictx.stroke();
   }
-
   const score = state.scores?.[pi]?.[si] || 0;
-  const maxScore = Math.max(...(state.scores?.[pi] || [0]), 0.0001);
-  const normalized = Math.round(score / maxScore * 100);
-  const isDetected = state.digits?.[pi] === si;
-  meta.innerHTML = `
+  document.getElementById('subzoneInspectorMeta').innerHTML = `
     <strong>P${pi} / S${si} 확대</strong>
-    <span>상태: ${isDetected ? '선택됨' : '미선택'}</span>
-    <span>점수: ${Math.round(score)} (${normalized}%)</span>
-    <span>빨간 표시: 실제 감지 후보 / 초록 표시: 셀 중심</span>
-    <span>이미지 좌표: x ${cellX}~${cellX + cellW}, y ${cellY}~${cellY + cellH}</span>
-    <span>클릭한 셀은 해당 P 영역의 답으로 지정됩니다.</span>
+    <span>상태: ${state.digits?.[pi] === si ? '선택됨' : '미선택'}</span>
+    <span>후보 점수: ${Math.round(score)}</span>
+    <span>후보 좌표: ${best ? `${best.cx.toFixed(1)}, ${best.cy.toFixed(1)}` : '없음'}</span>
   `;
-  inspector.classList.add('show');
+  document.getElementById('confirmSubzoneBtn').disabled = !best;
+  document.getElementById('subzoneInspector').classList.add('show');
 }
 
 // ── 오버레이 그리기 ──────────────────────────────
@@ -2074,28 +1839,7 @@ function drawOverlay() {
   octx.strokeRect(srx, sry, srw, srh);
   octx.setLineDash([]);
 
-  // 이상도 히트맵
-  if (state.showHeat && state.scores) {
-    for (let pr = 0; pr < pRows; pr++) {
-      for (let pc = 0; pc < pCols; pc++) {
-        const pi = pr * pCols + pc;
-        const s = state.scores[pi];
-        if (!s) continue;
-        const maxS = Math.max(...s, 0.0001);
 
-        for (let sr = 0; sr < sRows; sr++) {
-          for (let sc = 0; sc < sCols; sc++) {
-            const si = sr * sCols + sc;
-            const intensity = s[si] / maxS;
-            const x = srx + pc*pW + sc*sW;
-            const y = sry + pr*pH + sr*sH;
-            octx.fillStyle = `rgba(255,80,0,${intensity * 0.45})`;
-            octx.fillRect(x, y, sW, sH);
-          }
-        }
-      }
-    }
-  }
 
   // 세부분할 그리드
   if (state.showSub) {
@@ -2139,17 +1883,7 @@ function drawOverlay() {
     }
   }
 
-  // 모든 후보점 표시 (작은 파란 점)
-  if (state.showDots && state.candidates) {
-    for (const c of state.candidates.slice(0, 100)) {
-      const cx2 = c.cx * scale, cy2 = c.cy * scale;
-      if (cx2 < 0 || cx2 > overlayCanvas.width || cy2 < 0 || cy2 > overlayCanvas.height) continue;
-      octx.strokeStyle = 'rgba(100,160,255,0.4)';
-      octx.lineWidth = 0.8;
-      const r2 = Math.max(2, Math.min(8, Math.sqrt(c.area) * scale * 0.4));
-      octx.beginPath(); octx.arc(cx2, cy2, r2, 0, Math.PI * 2); octx.stroke();
-    }
-  }
+
 
   // 감지 점 표시 (선택된 점 — 형태기반)
   if (state.showDots && state.digits && state.scores) {
@@ -2159,25 +1893,18 @@ function drawOverlay() {
         const digit = state.digits[pi];
         if (digit < 0) continue;
 
-        const scores = state.scores[pi] || [];
-        const maxScore = Math.max(...scores, 0.0001);
-        const scoreRatio = scores[digit] / maxScore;
-
-        const sr = Math.floor(digit / sCols);
-        const sc = digit % sCols;
+        const scoreRatio = state.autoResult?.certainties?.[pi] || 0;
         const autoPoint = state.zoneBest?.[pi];
         const manualPoint = state.manualMarks.find(m => m.pi === pi);
-        const sourcePoint = manualPoint || (autoPoint?.si === digit ? autoPoint : null);
-        const cx = sourcePoint ? sourcePoint.cx * scale : srx + pc*pW + sc*sW + sW/2;
-        const cy = sourcePoint ? sourcePoint.cy * scale : sry + pr*pH + sr*sH + sH/2;
-        const r = Math.min(sW, sH) * 0.28;
+        if (manualPoint || autoPoint?.si !== digit) continue;
+        const cx = autoPoint.cx * scale;
+        const cy = autoPoint.cy * scale;
+        const r = Math.max(7, Math.min(14, Math.min(sW, sH) * 0.1));
 
         // 신뢰도에 따른 색상 (높으면 초록, 낮으면 노랑)
         const color = scoreRatio > 0.7 ? '#22c55e' : scoreRatio > 0.4 ? '#f59e0b' : '#ef4444';
 
-        octx.fillStyle = color.replace(')', ',0.2)').replace('rgb', 'rgba').replace('#22c55e', 'rgba(34,197,94,0.2)').replace('#f59e0b', 'rgba(245,158,11,0.2)').replace('#ef4444', 'rgba(239,68,68,0.2)');
-        octx.fillStyle = `rgba(${hexToRgb(color)},0.2)`;
-        octx.beginPath(); octx.arc(cx, cy, r*1.8, 0, Math.PI*2); octx.fill();
+
 
         octx.strokeStyle = color;
         octx.lineWidth = 1.5;
@@ -2188,7 +1915,7 @@ function drawOverlay() {
         octx.font = `bold ${Math.max(9, Math.min(16, r))}px monospace`;
         octx.textAlign = 'center';
         octx.textBaseline = 'middle';
-        octx.fillText(String(digit), cx, cy);
+        octx.fillText(String(digit), cx + r + 7, cy - r);
         octx.textAlign = 'left';
         octx.textBaseline = 'alphabetic';
       }
@@ -2201,8 +1928,6 @@ function drawOverlay() {
     octx.strokeStyle = '#f97316';
     octx.lineWidth = 2;
     octx.beginPath(); octx.arc(mx, my, 10, 0, Math.PI*2); octx.stroke();
-    octx.fillStyle = '#f97316';
-    octx.beginPath(); octx.arc(mx, my, 3, 0, Math.PI*2); octx.fill();
     const labelX = mx + 13, labelY = my - 8;
     octx.fillStyle = 'rgba(0,0,0,0.7)';
     octx.fillRect(labelX - 2, labelY - 11, 46, 15);
@@ -2224,59 +1949,80 @@ function drawOverlay() {
   }
 }
 
-// hex → rgb 헬퍼
-function hexToRgb(hex) {
-  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-  if (!m) return '255,255,255';
-  return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`;
+// ── 이미지 로드 및 표시 ──────────────────────────
+function invalidateResult() {
+  revision++;
+  if (analysisTimer !== null) clearTimeout(analysisTimer);
+  analysisTimer = null;
+  analysisWorker?.terminate();
+  analysisWorker = null;
+  state.digits = state.scores = state.candidates = state.zoneBest = state.cellBest = state.autoResult = null;
+  state.manualMarks = [];
+  state.selectedSubzone = null;
+  hideSubzoneInspector();
+  document.getElementById('subzonePanel').style.display = 'none';
+  document.getElementById('subzoneGrid').innerHTML = '';
+  document.getElementById('analyzeProgress').style.display = 'none';
+  document.getElementById('analyzeBtn').disabled = !state.imageData;
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  updateResultDisplay();
 }
 
-// ── 이미지 로드 및 표시 ──────────────────────────
+function showError(error) {
+  const el = document.getElementById('analyzeProgress');
+  el.textContent = error.message || '처리하지 못했습니다.';
+  el.style.display = 'block';
+  document.getElementById('analyzeBtn').disabled = !state.imageData;
+}
+
 function loadImage(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      state.image = img;
-      state.selectedSubzone = null;
-      hideSubzoneInspector();
-
-      const cw = img.naturalWidth;
-      const ch = img.naturalHeight;
-
-      mainCanvas.width = cw;
-      mainCanvas.height = ch;
-      overlayCanvas.width = cw;
-      overlayCanvas.height = ch;
-
-      ctx.drawImage(img, 0, 0, cw, ch);
+  resetAll();
+  const token = ++loadVersion;
+  if (!file || !/\.(png|jpe?g|bmp|webp)$/i.test(file.name) || file.size > 40 * 1024 * 1024) {
+    showError(new Error('40MB 이하의 PNG, JPG, BMP, WebP 파일을 선택하세요.'));
+    return;
+  }
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  imageUrl = url;
+  const release = () => { URL.revokeObjectURL(url); if (imageUrl === url) imageUrl = null; };
+  img.onerror = () => {
+    release();
+    if (token === loadVersion) showError(new Error('이미지를 읽을 수 없습니다. 파일을 확인하세요.'));
+  };
+  img.onload = () => {
+    release();
+    if (token !== loadVersion) return;
+    try {
+      const cw = img.naturalWidth, ch = img.naturalHeight;
+      if (cw < 8 || ch < 8 || cw * ch > 20000000) throw new Error('이미지는 가로·세로 8px 이상, 2천만 픽셀 이하여야 합니다.');
+      mainCanvas.width = overlayCanvas.width = cw;
+      mainCanvas.height = overlayCanvas.height = ch;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, 0, 0);
       state.imageData = ctx.getImageData(0, 0, cw, ch);
-      applyZoom(Math.min(1, Math.max(0.35, 900 / cw)));
-
+      state.image = img;
+      state.region = state.autoDetect ? autoDetectRegion(state.imageData) : getManualRegion();
+      updateManualFields();
+      applyZoom(Math.min(1, Math.max(0.2, (document.getElementById('canvasArea').clientWidth - 32) / cw)));
       document.getElementById('emptyState').style.display = 'none';
       document.getElementById('canvasWrap').style.display = 'inline-block';
-
-      if (state.autoDetect) {
-        state.region = autoDetectRegion(state.imageData);
-        updateManualFields();
-      } else {
-        state.region = getManualRegion();
-      }
-
+      document.getElementById('analyzeBtn').disabled = false;
       drawOverlay();
-    };
-    img.src = e.target.result;
+    } catch (error) {
+      state.image = state.imageData = state.region = null;
+      showError(error);
+    }
   };
-  reader.readAsDataURL(file);
+  img.src = url;
 }
 
 function getManualRegion() {
-  return {
-    x: parseInt(document.getElementById('regX').value) || 0,
-    y: parseInt(document.getElementById('regY').value) || 0,
-    w: parseInt(document.getElementById('regW').value) || 400,
-    h: parseInt(document.getElementById('regH').value) || 500,
-  };
+  const region = Object.fromEntries([['x', 'regX'], ['y', 'regY'], ['w', 'regW'], ['h', 'regH']]
+    .map(([key, id]) => [key, document.getElementById(id).value.trim() === '' ? NaN : Number(document.getElementById(id).value)]));
+  if (!state.imageData) return region;
+  return normalizeRegion(region, state.imageData.width, state.imageData.height);
 }
 
 function updateManualFields() {
@@ -2288,10 +2034,6 @@ function updateManualFields() {
 }
 
 // ── 분석 실행 ────────────────────────────────────
-// ============================================================
-//  QR 자동정렬 디코더 (v5.0, 300dpi 실문서) — QR로 전체영역 자동산출
-// ============================================================
-// ── QR 자동정렬 디코더 (300dpi 실문서) — 순수 JS ──
 function boxBlurI(o,w,h,r){
   const W1=w+1,ii=new Float64Array(W1*(h+1));
   for(let y=0;y<h;y++){let row=0;for(let x=0;x<w;x++){row+=o[y*w+x];ii[(y+1)*W1+(x+1)]=ii[y*W1+(x+1)]+row;}}
@@ -2572,6 +2314,7 @@ function analyzeQRAuto(imageData){
   for(let pi=0;pi<8;pi++){
     const zs=zone[pi].sort((a,b)=>b.s-a.s);
     const sc=new Array(8).fill(0);
+    for(const d of zs) sc[d.si]=Math.max(sc[d.si],d.s);
     if(!zs.length){digits.push(-1);scores.push(sc);margins.push(0);continue;}
     const b=zs[0];
     digits.push(b.si);sc[b.si]=b.s;scores.push(sc);
@@ -2595,94 +2338,119 @@ function analyzeQRAuto(imageData){
     docp*=p;
   }
   const confidence=Math.round(100*docp);
-  const candidates=cs.slice().sort((a,b)=>b.s-a.s).slice(0,300).map(d=>({cx:Math.round(d.cx),cy:Math.round(d.cy),area:d.area,score:d.s}));
+  const candidates=cs.slice().sort((a,b)=>b.s-a.s).slice(0,300).map(d=>({cx:Math.round(d.cx),cy:Math.round(d.cy),area:d.area,score:d.s,pi:d.pi,si:d.si}));
   return {digits,scores,candidates,zoneBest,confidence,margins,
           mode:'QR자동정렬 v6.1'+(Math.abs(skew)>=0.15?` (기울기 ${skew.toFixed(2)}°)`:''),
           region:{x:Ax,y:Ay,w:Bx*8,h:By*8},qr,skew};
 }
 
-function analyze() {
-  if (!state.imageData) return alert('이미지를 먼저 업로드하세요.');
 
-  const darkThresh = parseInt(document.getElementById('darkThreshSlider').value);
-  const bgPct      = parseInt(document.getElementById('bgPctSlider').value);
-
-  if (!state.autoDetect) state.region = getManualRegion();
-  else if (!state.region) state.region = autoDetectRegion(state.imageData);
-
-  // 진행 표시
-  const progressEl = document.getElementById('analyzeProgress');
-  progressEl.style.display = 'block';
-  document.getElementById('analyzeBtn').disabled = true;
-
-  // 비동기로 실행 (UI 블록 방지)
-  setTimeout(() => {
-    try {
-      let result = analyzeQRAuto(state.imageData);
-      if (result && result.digits) {
-        state.region = result.region;   // QR로 산출한 전체영역
-      } else {
-        result = analyzeAnomaly(state.imageData, state.region, darkThresh, bgPct);
-      }
-
-      state.digits = result.digits;
-      state.scores = result.scores;
-      state.candidates = result.candidates;
-      state.zoneBest = result.zoneBest;
-      state.selectedSubzone = null;
-
-      updateResultDisplay();
-
-      const conf = result.confidence ?? calcConfidence(result.scores, result.digits);
-      const detected = result.digits.filter(d => d >= 0).length;
-      document.getElementById('statZones').textContent = `${detected}/${P_ROWS*P_COLS}`;
-      document.getElementById('statConf').textContent = `${conf}%`;
-      document.getElementById('statAlgo').textContent = result.mode || '희소점';
-
-      drawOverlay();
-      drawSubzoneGrid();
-    } finally {
-      progressEl.style.display = 'none';
-      document.getElementById('analyzeBtn').disabled = false;
+function analyzeDocument(imageData, region, autoAlign = true) {
+  const result = autoAlign ? analyzeQRAuto(imageData) : null;
+  if (!result?.digits) return analyzeAnomaly(imageData, region);
+  result.cellBest = Array.from({ length: 8 }, () => Array(8).fill(null));
+  for (const point of result.candidates) {
+    if (point.pi < 0 || point.pi > 7 || point.si < 0 || point.si > 7) continue;
+    const previous = result.cellBest[point.pi][point.si];
+    if (!previous || point.score * 1000 > previous.score) {
+      result.cellBest[point.pi][point.si] = { ...point, score: point.score * 1000 };
     }
-  }, 20);
+  }
+  result.certainties = result.digits.map((digit, pi) => {
+    const point = result.zoneBest[pi];
+    if (digit < 0 || !point) return 0;
+    result.cellBest[pi][digit] = { ...point, score: point.score * 1000 };
+    return (point.p || 0) / 100;
+  });
+  result.scores = result.scores.map(row => row.map(score => score * 1000));
+  result.review = result.digits.map((digit, pi) => digit < 0 || result.certainties[pi] < 0.6 ||
+    (result.zoneBest[pi]?.margin || 0) < 0.25 || (result.zoneBest[pi]?.pos || 0) < 0.35);
+  if (result.digits.some(digit => digit < 0)) result.confidence = 0;
+  return result;
 }
 
-// ── 초기화 ──────────────────────────────────────
+function createAnalysisWorker() {
+  const functions = [toGrayFloat, percentile, findCompactDarkCandidates, findFlexibleDarkCandidates,
+    clamp, sampleLocalStats, estimateZoneBackground, analyzeSparsePass, analyzeUltraFaintPass,
+    analyzeLineBoundPass, fitLattice, analyzeGridConsensus, getScoreStats, combineAnalysisPasses,
+    applyGridConsensus, analyzeAnomaly, normalizeRegion, calcConfidence, calcZoneConfidence, calcEnsembleConfidence,
+    buildLineMask, onLine, analyzeDocument, boxBlurI, integral, rectSum, labelCC, detectQRCenter, runLengthLines, medArr, detectQRCenterV61, estimateSkewV61, detectDotsV61, fitAxisV61, analyzeQRAuto];
+  const constants = { P_ROWS, P_COLS, S_ROWS, S_COLS, SPARSE_BASE_OPTIONS, SPARSE_FAINT_OPTIONS,
+    ULTRA_FAINT_OPTIONS, LINE_BOUND_OPTIONS };
+  const source = Object.entries(constants).map(([key, value]) => `const ${key} = ${JSON.stringify(value)};`).join('\n')
+    + '\nlet _lineMaskCache=null, _lmW=0, _lmH=0;\n' + functions.map(fn => fn.toString()).join('\n')
+    + '\nonmessage = ({data}) => { try { postMessage({result: analyzeDocument(data.imageData, data.region, data.autoAlign)}); } catch (error) { postMessage({error: error.message}); } };';
+  const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+  try { return new Worker(url); } finally { URL.revokeObjectURL(url); }
+}
+
+function analyze() {
+  if (!state.imageData) return;
+  invalidateResult();
+  const token = revision;
+  try {
+    state.region = state.autoDetect ? autoDetectRegion(state.imageData) : getManualRegion();
+    updateManualFields();
+  } catch (error) { showError(error); return; }
+  const progress = document.getElementById('analyzeProgress');
+  progress.textContent = '분석 중...';
+  progress.style.display = 'block';
+  document.getElementById('analyzeBtn').disabled = true;
+  const complete = ({ result, error }) => {
+    if (token !== revision) return;
+    analysisTimer = null;
+    analysisWorker?.terminate();
+    analysisWorker = null;
+    document.getElementById('analyzeBtn').disabled = false;
+    if (error) { showError(new Error(error)); return; }
+    progress.style.display = 'none';
+    if (result.region) { state.region = result.region; updateManualFields(); }
+    state.autoResult = result;
+    state.digits = [...result.digits];
+    state.scores = result.scores;
+    state.candidates = result.candidates;
+    state.zoneBest = result.zoneBest;
+    state.cellBest = result.cellBest;
+    updateResultDisplay();
+    drawOverlay();
+    drawSubzoneGrid();
+  };
+  try {
+    if (typeof Worker !== 'undefined') {
+      analysisWorker = createAnalysisWorker();
+      analysisWorker.onmessage = event => complete(event.data);
+      analysisWorker.onerror = event => complete({ error: event.message || '분석 작업이 중단되었습니다.' });
+      const data = new Uint8ClampedArray(state.imageData.data);
+      analysisWorker.postMessage({ imageData: { data, width: state.imageData.width, height: state.imageData.height },
+        region: state.region, autoAlign: state.autoDetect }, [data.buffer]);
+    } else {
+      analysisTimer = setTimeout(() => {
+        if (token !== revision) return;
+        try { complete({ result: analyzeDocument(state.imageData, state.region, state.autoDetect) }); }
+        catch (error) { complete({ error: error.message }); }
+      }, 20);
+    }
+  } catch (error) { complete({ error: error.message }); }
+}
+
 function resetAll() {
-  state.image = null;
-  state.imageData = null;
-  state.region = null;
-  state.digits = null;
-  state.scores = null;
-  state.candidates = null;
-  state.zoneBest = null;
-  state.manualMarks = [];
-  state.selectedSubzone = null;
-
+  loadVersion++;
+  if (imageUrl) URL.revokeObjectURL(imageUrl);
+  imageUrl = null;
+  state.image = state.imageData = state.region = null;
+  invalidateResult();
   ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
   document.getElementById('emptyState').style.display = 'block';
   document.getElementById('canvasWrap').style.display = 'none';
-  document.getElementById('resultCode').textContent = '————————';
-  const copyBtn = document.getElementById('copyCodeBtn');
-  copyBtn.disabled = true;
-  copyBtn.textContent = '복사';
-  document.getElementById('codeDisplay').innerHTML = '';
-  document.getElementById('statZones').textContent = '—';
-  document.getElementById('statConf').textContent = '—';
-  document.getElementById('statAlgo').textContent = '—';
   document.getElementById('fileInput').value = '';
-  document.getElementById('subzonePanel').style.display = 'none';
-  document.getElementById('subzoneGrid').innerHTML = '';
-  hideSubzoneInspector();
+  document.getElementById('cameraInput').value = '';
   applyZoom(1);
 }
 
 async function copyResultCode() {
   const code = document.getElementById('resultCode').textContent.trim();
-  if (!/^\d{8}$/.test(code)) return;
+  if (!/^[0-7]{8}$/.test(code) || document.getElementById('copyCodeBtn').disabled) return;
+  const token = revision;
 
   try {
     await navigator.clipboard.writeText(code);
@@ -2694,11 +2462,13 @@ async function copyResultCode() {
     temp.style.opacity = '0';
     document.body.appendChild(temp);
     temp.select();
-    document.execCommand('copy');
+    const copied = document.execCommand('copy');
     temp.remove();
+    if (!copied) { showError(new Error('복사하지 못했습니다. 브라우저 권한을 확인하세요.')); return; }
   }
 
   const copyBtn = document.getElementById('copyCodeBtn');
+  if (token !== revision) return;
   copyBtn.textContent = '복사됨';
   setTimeout(() => {
     copyBtn.textContent = '복사';
@@ -2714,13 +2484,11 @@ document.getElementById('uploadZone').addEventListener('click', () =>
   document.getElementById('fileInput').click());
 document.getElementById('fileInput').addEventListener('change', e =>
   e.target.files[0] && loadImage(e.target.files[0]));
-// 모바일 카메라 촬영
-const _camBtn=document.getElementById('cameraBtn'), _camIn=document.getElementById('cameraInput');
-if(_camBtn&&_camIn){
-  _camBtn.addEventListener('click', ()=> _camIn.click());
-  _camIn.addEventListener('change', e=> e.target.files[0] && loadImage(e.target.files[0]));
-}
 
+document.getElementById('cameraBtn').addEventListener('click', () => document.getElementById('cameraInput').click());
+document.getElementById('cameraInput').addEventListener('change', event => {
+  if (event.target.files[0]) loadImage(event.target.files[0]);
+});
 const uploadZone = document.getElementById('uploadZone');
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
@@ -2746,24 +2514,34 @@ document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoo
 // 토글
 function makeToggle(id, stateKey, callback) {
   const el = document.getElementById(id);
+  el.setAttribute('role', 'switch');
+  el.setAttribute('tabindex', '0');
+  el.setAttribute('aria-label', el.parentElement?.querySelector('span')?.textContent || id);
+  el.setAttribute('aria-checked', String(Boolean(state[stateKey])));
+  el.addEventListener('keydown', event => {
+    if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); el.click(); }
+  });
   el.addEventListener('click', () => {
     el.classList.toggle('on');
+    el.setAttribute('aria-checked', String(el.classList.contains('on')));
     if (stateKey) state[stateKey] = el.classList.contains('on');
     if (callback) callback();
   });
 }
 makeToggle('autoDetectToggle', 'autoDetect', () => {
+  invalidateResult();
   document.getElementById('manualRegion').style.display = state.autoDetect ? 'none' : 'block';
-  if (state.autoDetect && state.imageData) {
-    state.region = autoDetectRegion(state.imageData);
+  if (!state.imageData) return;
+  try {
+    state.region = state.autoDetect ? autoDetectRegion(state.imageData) : getManualRegion();
     updateManualFields();
     drawOverlay();
-  }
+  } catch (error) { state.region = null; showError(error); }
 });
 makeToggle('showPrimaryToggle', 'showPrimary', drawOverlay);
 makeToggle('showSubToggle', 'showSub', drawOverlay);
 makeToggle('showDotsToggle', 'showDots', drawOverlay);
-makeToggle('showHeatToggle', 'showHeat', drawOverlay);
+
 makeToggle('showSubzonePanelToggle', 'showSubzonePanel', drawSubzoneGrid);
 
 // 수동 마킹 토글
@@ -2785,6 +2563,12 @@ makeToggle('manualMarkToggle', 'manualMode', () => {
 });
 
 document.getElementById('clearMarksBtn').addEventListener('click', clearManualMarks);
+document.getElementById('confirmSubzoneBtn').addEventListener('click', () => {
+  const selected = state.selectedSubzone;
+  if (!selected) return;
+  const point = state.cellBest?.[selected.pi]?.[selected.si];
+  if (point) addManualMark(point.cx, point.cy);
+});
 
 // 캔버스 클릭 → 수동 마킹
 overlayCanvas.addEventListener('click', (e) => {
@@ -2797,22 +2581,16 @@ overlayCanvas.addEventListener('click', (e) => {
   addManualMark(cx, cy);
 });
 
-// 슬라이더 연동
-function bindSlider(sliderId, valueId, suffix = '') {
-  const slider = document.getElementById(sliderId);
-  const val = document.getElementById(valueId);
-  if (!slider || !val) return;
-  slider.addEventListener('input', () => {
-    val.textContent = slider.value + suffix;
-  });
-}
-bindSlider('darkThreshSlider', 'darkThreshVal');
-bindSlider('bgPctSlider', 'bgPctVal');
+
 
 // 수동 영역 필드
 ['regX','regY','regW','regH'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
-    if (!state.autoDetect) { state.region = getManualRegion(); drawOverlay(); }
+    if (!state.autoDetect) {
+      invalidateResult();
+      try { state.region = getManualRegion(); drawOverlay(); }
+      catch (error) { state.region = null; showError(error); }
+    }
   });
 });
 
