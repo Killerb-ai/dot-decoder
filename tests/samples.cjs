@@ -3,11 +3,14 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const sharp = require('sharp');
 const { loadApp } = require('./harness.cjs');
+const { assertResult } = require('./result-checks.cjs');
 const samples = require('./samples.json');
 
 async function main() {
   const root = process.argv[2];
-  if (!root) throw new Error('Usage: node tests/samples.cjs <private-sample-directory> [--baseline=<git-ref>]');
+  if (!root) throw new Error('Usage: node tests/samples.cjs <private-sample-directory> [--pipeline=sparse|document] [--baseline=<git-ref>]');
+  const pipeline = process.argv.find(arg => arg.startsWith('--pipeline='))?.split('=')[1] || 'sparse';
+  if (!['sparse', 'document'].includes(pipeline)) throw new Error('Unknown pipeline');
   const ref = process.argv.find(arg => arg.startsWith('--baseline='))?.split('=')[1];
   const baseline = ref ? execFileSync('git', ['show', `${ref}:index.html`], { encoding: 'utf8' }) : undefined;
   let total = 0, correct = 0, located = 0;
@@ -15,7 +18,9 @@ async function main() {
     const { data, info } = await sharp(path.join(root, sample.file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const app = loadApp(baseline);
     app.sandbox.input = { data, width: info.width, height: info.height };
-    const result = app.run('analyzeAnomaly(input, autoDetectRegion(input), 100, 88)');
+    const result = app.run(pipeline === 'document' ? 'analyzeDocument(input, autoDetectRegion(input))'
+      : 'analyzeAnomaly(input, autoDetectRegion(input), 100, 88)');
+    if (!baseline) assertResult(result, info, sample.id);
     let matchedDigits = 0, matchedPoints = 0, labeled = 0;
     const misses = [];
     for (let pi = 0; pi < 8; pi++) {
@@ -24,10 +29,13 @@ async function main() {
       if (result.digits[pi] === sample.digits[pi]) matchedDigits++;
       const p = result.zoneBest[pi], expected = sample.points[pi];
       if (result.digits[pi] === sample.digits[pi] && p && Math.hypot(p.cx - expected[0], p.cy - expected[1]) <= sample.tolerance) matchedPoints++;
-      else misses.push(`P${pi}`);
+      else {
+        misses.push(`P${pi}`);
+        if (!baseline) assert.equal(result.review[pi], true, `${sample.id}: incorrect P${pi} must require review`);
+      }
     }
     total += labeled; correct += matchedDigits; located += matchedPoints;
-    console.log(JSON.stringify({ sample: sample.id, code: result.digits.map(d => d < 0 ? '?' : d).join(''),
+    console.log(JSON.stringify({ sample: sample.id, pipeline, mode: result.mode, code: result.digits.map(d => d < 0 ? '?' : d).join(''),
       labeled, matchedDigits, matchedPoints, misses, review: result.review, score: result.confidence }));
     if (!baseline) assert.ok(matchedPoints >= sample.minimumLocated, `${sample.id} regressed below its recorded baseline`);
   }

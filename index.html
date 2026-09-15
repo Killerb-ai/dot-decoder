@@ -979,13 +979,16 @@ function analyzeSparsePass(imageData, region, darkThresh, bgPct, options, shared
     for (let pc = 0; pc < P_COLS; pc++) {
       const pi = pr * P_COLS + pc;
 
-      // 기본분할 영역 좌표
-      const zx0 = Math.max(0, Math.floor(rx + pc * pW));
-      const zx1 = Math.min(w, Math.ceil(rx + (pc + 1) * pW));
-      const zy0 = Math.max(0, Math.floor(ry + pr * pH));
-      const zy1 = Math.min(h, Math.ceil(ry + (pr + 1) * pH));
+      // Keep candidate ownership disjoint at fractional zone boundaries.
+      // Only background sampling needs integer pixel bounds.
+      const zx0 = rx + pc * pW;
+      const zx1 = rx + (pc + 1) * pW;
+      const zy0 = ry + pr * pH;
+      const zy1 = ry + (pr + 1) * pH;
 
-      const localBg = estimateZoneBackground(gray, w, zx0, zy0, zx1, zy1, bgPct);
+      const localBg = estimateZoneBackground(gray, w,
+        Math.max(0, Math.floor(zx0)), Math.max(0, Math.floor(zy0)),
+        Math.min(w, Math.ceil(zx1)), Math.min(h, Math.ceil(zy1)), bgPct);
 
       // 서브존별 이상도 합산
       const scores = new Array(S_ROWS * S_COLS).fill(0);
@@ -997,10 +1000,10 @@ function analyzeSparsePass(imageData, region, darkThresh, bgPct, options, shared
       for (let sr = 0; sr < S_ROWS; sr++) {
         for (let sc = 0; sc < S_COLS; sc++) {
           const si = sr * S_COLS + sc;
-          const sx0 = Math.max(zx0, Math.floor(zx0 + sc * sW));
-          const sx1 = Math.min(zx1, Math.ceil(zx0 + (sc + 1) * sW));
-          const sy0 = Math.max(zy0, Math.floor(zy0 + sr * sH));
-          const sy1 = Math.min(zy1, Math.ceil(zy0 + (sr + 1) * sH));
+          const sx0 = zx0 + sc * sW;
+          const sx1 = zx0 + (sc + 1) * sW;
+          const sy0 = zy0 + sr * sH;
+          const sy1 = zy0 + (sr + 1) * sH;
           const centerX = (sx0 + sx1) / 2;
           const centerY = (sy0 + sy1) / 2;
           const centerRadius = Math.max(9, Math.min(sx1 - sx0, sy1 - sy0) * options.radiusScale);
@@ -1347,8 +1350,11 @@ function analyzeGridConsensus(imageData, region, candidates, sharedGray) {
   const ranked = [...hypotheses.values()].sort((a, b) => b.count - a.count || b.quality - a.quality);
   if (!ranked.length) return null;
   const best = ranked[0];
-  const competitors = ranked.slice(1).filter(fit => fit.count === best.count && fit.quality >= best.quality * 0.8);
-  best.ambiguous = best.matches.map((point, pi) => competitors.some(fit => fit.matches[pi]?.si !== point?.si) ||
+  // Every retained hypothesis already has at least six supported zones.
+  // Missing dots reduce support, but cannot erase a comparably clear competing lattice.
+  const competitors = ranked.slice(1).filter(fit => fit.quality / fit.count >= best.quality / best.count * 0.8);
+  best.ambiguous = best.matches.map((point, pi) => competitors.some(fit =>
+    point && fit.matches[pi] && fit.matches[pi].si !== point.si) ||
     pool.some(p => {
       if (!point || p.pi !== pi || p.si === point.si) return false;
       const dx = (p.nx - (best.model.x[0] * p.u + best.model.x[1] * p.v + best.model.x[2])) / tx;
@@ -1431,7 +1437,12 @@ function applyGridConsensus(result, grid, region) {
     });
     const point = grid.matches[pi];
     result.digits[pi] = point?.si ?? -1;
-    result.zoneBest[pi] = point ? { ...point, source: 'grid' } : null;
+    result.zoneBest[pi] = point ? { ...point, score: point.merit * 1000, source: 'grid' } : null;
+    if (point) {
+      // Inspection and confirmation must use the exact point accepted by the lattice.
+      result.cellBest[pi][point.si] = result.zoneBest[pi];
+      result.scores[pi][point.si] = result.zoneBest[pi].score;
+    }
     result.sources[pi] = point ? 'grid' : 'missing';
     result.certainties[pi] = point
       ? (1 - Math.exp(-point.contrast / 35)) * Math.exp(-point.residual * point.residual / 2)
@@ -1520,6 +1531,31 @@ function autoDetectRegion(imageData, margin = 10) {
   };
 }
 
+// QR 격자는 역회전한 좌표계에 있고, 이미지와 후보 좌표는 원본 좌표계에 있다.
+function mapGridPoint(x, y, toImage = false, result = state.autoResult) {
+  if (!result?.qr || !Number.isFinite(result.skew) || result.skew === 0) return { x, y };
+  const t = result.skew * Math.PI / 180 * (toImage ? 1 : -1);
+  const dx = x - result.qr.cx, dy = y - result.qr.cy;
+  return { x: result.qr.cx + Math.cos(t) * dx - Math.sin(t) * dy,
+    y: result.qr.cy + Math.sin(t) * dx + Math.cos(t) * dy };
+}
+
+function applyManualMark(canvasX, canvasY, pi, si) {
+  if (!Number.isFinite(canvasX) || !Number.isFinite(canvasY) ||
+      !Number.isInteger(pi) || pi < 0 || pi >= 8 || !Number.isInteger(si) || si < 0 || si >= 8 ||
+      (state.imageData && (canvasX < 0 || canvasY < 0 || canvasX >= state.imageData.width || canvasY >= state.imageData.height))) return;
+  if (analysisWorker || analysisTimer !== null) invalidateResult();
+  const existing = state.manualMarks.findIndex(m => m.pi === pi);
+  const mark = { cx: canvasX, cy: canvasY, pi, si, digit: si };
+  if (existing >= 0) state.manualMarks[existing] = mark;
+  else state.manualMarks.push(mark);
+  if (!state.digits) state.digits = Array(8).fill(-1);
+  state.digits[pi] = si;
+  updateResultDisplay();
+  drawSubzoneGrid();
+  drawOverlay();
+}
+
 // ── 수동 마킹: 클릭 좌표 → 기본/세부분할 계산 ────
 function addManualMark(canvasX, canvasY) {
   if (!state.region) return;
@@ -1533,11 +1569,11 @@ function addManualMark(canvasX, canvasY) {
   const pW = rw / pCols, pH = rh / pRows;
   const sW = pW / sCols, sH = pH / sRows;
 
-  if (!Number.isFinite(canvasX) || !Number.isFinite(canvasY) ||
-      canvasX < rx || canvasX >= rx+rw || canvasY < ry || canvasY >= ry+rh) return;
-  if (analysisWorker || analysisTimer !== null) invalidateResult();
+  const point = mapGridPoint(canvasX, canvasY);
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y) ||
+      point.x < rx || point.x >= rx+rw || point.y < ry || point.y >= ry+rh) return;
 
-  const relX = canvasX - rx, relY = canvasY - ry;
+  const relX = point.x - rx, relY = point.y - ry;
   const pc = Math.min(Math.floor(relX / pW), pCols - 1);
   const pr = Math.min(Math.floor(relY / pH), pRows - 1);
   const pi = pr * pCols + pc;
@@ -1548,17 +1584,7 @@ function addManualMark(canvasX, canvasY) {
   const sr = Math.min(Math.floor(subRelY / sH), sRows - 1);
   const si = sr * sCols + sc;
 
-  const existing = state.manualMarks.findIndex(m => m.pi === pi);
-  const mark = { cx: canvasX, cy: canvasY, pi, si, digit: si };
-  if (existing >= 0) state.manualMarks[existing] = mark;
-  else state.manualMarks.push(mark);
-
-  if (!state.digits) state.digits = Array(pRows * pCols).fill(-1);
-  state.digits[pi] = si;
-
-  updateResultDisplay();
-  drawSubzoneGrid();
-  drawOverlay();
+  applyManualMark(canvasX, canvasY, pi, si);
 }
 
 function clearManualMarks() {
@@ -1716,12 +1742,23 @@ function drawSubzoneGrid() {
 
       // 실제 이미지 픽셀 직접 확대 표시
       tctx.imageSmoothingEnabled = false;
-      tctx.drawImage(mainCanvas, cellX, cellY, cellW, cellH, 0, 0, CELL_W, CELL_H);
+      tctx.save();
+      tctx.scale(CELL_W / cellW, CELL_H / cellH);
+      tctx.translate(-cellX, -cellY);
+      if (state.autoResult?.qr && Number.isFinite(state.autoResult.skew)) {
+        const { qr, skew } = state.autoResult;
+        tctx.translate(qr.cx, qr.cy);
+        tctx.rotate(-skew * Math.PI / 180);
+        tctx.translate(-qr.cx, -qr.cy);
+      }
+      tctx.drawImage(mainCanvas, 0, 0);
+      tctx.restore();
 
       // 감지된 서브존이면 중앙에 크로스헤어 표시
       const point = state.manualMarks.find(m => m.pi === pi && m.si === si) || state.cellBest?.[pi]?.[si];
       if (isDetected && point) {
-        const cx2 = (point.cx - cellX) / cellW * CELL_W, cy2 = (point.cy - cellY) / cellH * CELL_H;
+        const aligned = mapGridPoint(point.cx, point.cy);
+        const cx2 = (aligned.x - cellX) / cellW * CELL_W, cy2 = (aligned.y - cellY) / cellH * CELL_H;
         tctx.strokeStyle = 'rgba(34,197,94,0.9)';
         tctx.lineWidth = 1.5;
         tctx.beginPath();
@@ -1785,8 +1822,9 @@ function showSubzoneInspector(pi, si) {
   const cellX = x + (pi % 2 * 4 + si % 4) * sw;
   const cellY = y + (Math.floor(pi / 2) * 2 + Math.floor(si / 4)) * sh;
   const cropW = Math.min(96, sw, sh * 1.5), cropH = cropW / 1.5;
-  const cropX = clamp((best?.cx ?? cellX + sw / 2) - cropW / 2, 0, state.imageData.width - cropW);
-  const cropY = clamp((best?.cy ?? cellY + sh / 2) - cropH / 2, 0, state.imageData.height - cropH);
+  const center = mapGridPoint(cellX + sw / 2, cellY + sh / 2, true);
+  const cropX = clamp((best?.cx ?? center.x) - cropW / 2, 0, state.imageData.width - cropW);
+  const cropY = clamp((best?.cy ?? center.y) - cropH / 2, 0, state.imageData.height - cropH);
   const canvas = document.getElementById('subzoneInspectorCanvas');
   const ictx = canvas.getContext('2d');
   ictx.imageSmoothingEnabled = false;
@@ -1831,6 +1869,13 @@ function drawOverlay() {
   const sW = pW / sCols, sH = pH / sRows;
 
   octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  octx.save();
+  if (state.autoResult?.qr && Number.isFinite(state.autoResult.skew)) {
+    const { qr, skew } = state.autoResult;
+    octx.translate(qr.cx * scale, qr.cy * scale);
+    octx.rotate(skew * Math.PI / 180);
+    octx.translate(-qr.cx * scale, -qr.cy * scale);
+  }
 
   // 전체영역 테두리
   octx.strokeStyle = 'rgba(91,124,250,0.7)';
@@ -1885,6 +1930,7 @@ function drawOverlay() {
 
 
 
+  octx.restore();
   // 감지 점 표시 (선택된 점 — 형태기반)
   if (state.showDots && state.digits && state.scores) {
     for (let pr = 0; pr < pRows; pr++) {
@@ -1902,7 +1948,8 @@ function drawOverlay() {
         const r = Math.max(7, Math.min(14, Math.min(sW, sH) * 0.1));
 
         // 신뢰도에 따른 색상 (높으면 초록, 낮으면 노랑)
-        const color = scoreRatio > 0.7 ? '#22c55e' : scoreRatio > 0.4 ? '#f59e0b' : '#ef4444';
+        const color = state.autoResult?.review?.[pi] ? '#f59e0b'
+          : scoreRatio > 0.7 ? '#22c55e' : scoreRatio > 0.4 ? '#f59e0b' : '#ef4444';
 
 
 
@@ -2003,13 +2050,17 @@ function loadImage(file) {
       ctx.drawImage(img, 0, 0);
       state.imageData = ctx.getImageData(0, 0, cw, ch);
       state.image = img;
-      state.region = state.autoDetect ? autoDetectRegion(state.imageData) : getManualRegion();
-      updateManualFields();
+      let regionError = null;
+      try {
+        state.region = state.autoDetect ? autoDetectRegion(state.imageData) : getManualRegion();
+        updateManualFields();
+      } catch (error) { state.region = null; regionError = error; }
       applyZoom(Math.min(1, Math.max(0.2, (document.getElementById('canvasArea').clientWidth - 32) / cw)));
       document.getElementById('emptyState').style.display = 'none';
       document.getElementById('canvasWrap').style.display = 'inline-block';
       document.getElementById('analyzeBtn').disabled = false;
       drawOverlay();
+      if (regionError) showError(regionError);
     } catch (error) {
       state.image = state.imageData = state.region = null;
       showError(error);
@@ -2092,8 +2143,7 @@ function runLengthLines(dark,w,h,L){
   return ln;
 }
 // ============================================================
-//  v6.1 — 기울기보정 + 격자 자기보정 + 위치사전확률 + 캘리브레이션 신뢰도
-//  (연구: 변형 600/600·홀드아웃 264/264, 캘리브레이션 AUC 0.97)
+//  QR 정렬 — 기울기보정 + 격자 자기보정 + 위치·점프로파일 기반 판독 점수
 // ============================================================
 function medArr(a){if(!a.length)return null;const b=a.slice().sort((u,v)=>u-v);return b.length%2?b[(b.length-1)/2]:(b[b.length/2-1]+b[b.length/2])/2;}
 function detectQRCenterV61(gray,w,h){
@@ -2202,7 +2252,7 @@ function fitAxisV61(vals,wts,origin,pitch,npos,maxScale,maxShift){
 }
 function analyzeQRAuto(imageData){
   // v6.1 파이프라인: QR캐스케이드 → 노이즈적응 → 기울기보정 → 이중임계 점검출
-  //                → 격자 자기보정 → 위치사전확률 × 점프로파일 → 캘리브레이션 신뢰도
+  //                → 격자 자기보정 → 위치·점프로파일 기반 휴리스틱 점수
   const w=imageData.width,h=imageData.height;
   if(w<1800||h<1800)return{digits:null,mode:'저해상도(QR자동제외)'};
   const gray=toGrayFloat(imageData);
@@ -2284,6 +2334,13 @@ function analyzeQRAuto(imageData){
   }
   const [Ax,Bx]=fitAxisV61(fv_x,fw,x0,GPX,8,0.025,0.30);
   const [Ay,By]=fitAxisV61(fv_y,fw,y0,GPY,8,0.040,0.35);
+  // 보정 한계에 걸린 격자는 지원 범위 밖의 배율/위치일 수 있다.
+  const fitAtLimit = Math.abs(Bx/GPX-1)>=0.025-1e-6 || Math.abs(By/GPY-1)>=0.04-1e-6 ||
+    Math.abs(Ax-x0)>=0.30*GPX-1e-6 || Math.abs(Ay-y0)>=0.35*GPY-1e-6;
+  const gridCorners = [[Ax,Ay],[Ax+8*Bx,Ay],[Ax,Ay+8*By],[Ax+8*Bx,Ay+8*By]].map(([x,y])=>({
+    x:qr.cx+ct*(x-qr.cx)-stn*(y-qr.cy),y:qr.cy+stn*(x-qr.cx)+ct*(y-qr.cy)}));
+  const alignmentReliable = !fitAtLimit && gridCorners.every(p=>
+    p.x>=-w*0.05 && p.x<=w*1.05 && p.y>=-h*0.05 && p.y<=h*1.05);
   // 보정격자 기준 위치(잔차)·사전확률 → 신뢰셋 재산출(최중앙 우선)
   const SIGX=0.13,SIGY=0.17;
   for(const d of cs){
@@ -2320,10 +2377,17 @@ function analyzeQRAuto(imageData){
     digits.push(b.si);sc[b.si]=b.s;scores.push(sc);
     let m=1.0;
     for(let k=1;k<zs.length;k++){if(zs[k].si!==b.si){m=Math.max(0,1-zs[k].s/b.s);break;}}
+    let coordinateMargin = 1;
+    for(let k=1;k<zs.length;k++) {
+      if(Math.hypot(zs[k].cx-b.cx,zs[k].cy-b.cy)>=4) {
+        coordinateMargin=Math.max(0,1-zs[k].s/b.s);break;
+      }
+    }
     margins.push(m);
-    zoneBest[pi]={cx:Math.round(b.cx),cy:Math.round(b.cy),pi,si:b.si,score:b.s,pos:b.pos,rd2:b.rd2,margin:m};
+    zoneBest[pi]={cx:Math.round(b.cx),cy:Math.round(b.cy),pi,si:b.si,score:b.s,pos:b.pos,rd2:b.rd2,margin:m,coordinateMargin};
   }
-  // 캘리브레이션 신뢰도(로지스틱: margin,pos,rd2 → P(자릿정답), 문서=곱)
+  // 상대 판독 점수: 경쟁 후보·격자 적합도·주변 밀도와 절대 후보 강도를 함께 반영한다.
+  // 정답 확률이 아니며, 약한 단독 후보가 경쟁 후보 부재만으로 확실해지지 않게 한다.
   const Wc=[-1.8,2.89,5.58,-14.68];
   let docp=1;
   for(let pi=0;pi<8;pi++){
@@ -2332,14 +2396,16 @@ function analyzeQRAuto(imageData){
     if(b){
       const z=Wc[0]+Wc[1]*margins[pi]+Wc[2]*b.pos+Wc[3]*(b.rd2||0);
       p=1/(1+Math.exp(-z));
-      p=Math.min(0.998,Math.max(0.02,p));
-      b.p=Math.round(100*p);
+      p=Math.min(0.998,Math.max(0.02,p),1-Math.exp(-b.score/0.28));
+      p*=Math.sqrt(Math.max(0,b.coordinateMargin));
+      b.certainty=p;
+      b.p=100*p;
     }
     docp*=p;
   }
   const confidence=Math.round(100*docp);
   const candidates=cs.slice().sort((a,b)=>b.s-a.s).slice(0,300).map(d=>({cx:Math.round(d.cx),cy:Math.round(d.cy),area:d.area,score:d.s,pi:d.pi,si:d.si}));
-  return {digits,scores,candidates,zoneBest,confidence,margins,
+  return {digits,scores,candidates,zoneBest,confidence,margins,alignmentReliable,
           mode:'QR자동정렬 v6.1'+(Math.abs(skew)>=0.15?` (기울기 ${skew.toFixed(2)}°)`:''),
           region:{x:Ax,y:Ay,w:Bx*8,h:By*8},qr,skew};
 }
@@ -2360,11 +2426,12 @@ function analyzeDocument(imageData, region, autoAlign = true) {
     const point = result.zoneBest[pi];
     if (digit < 0 || !point) return 0;
     result.cellBest[pi][digit] = { ...point, score: point.score * 1000 };
-    return (point.p || 0) / 100;
+    return point.certainty ?? ((point.p || 0) / 100);
   });
   result.scores = result.scores.map(row => row.map(score => score * 1000));
-  result.review = result.digits.map((digit, pi) => digit < 0 || result.certainties[pi] < 0.6 ||
-    (result.zoneBest[pi]?.margin || 0) < 0.25 || (result.zoneBest[pi]?.pos || 0) < 0.35);
+  result.review = result.digits.map((digit, pi) => result.alignmentReliable === false ||
+    digit < 0 || result.certainties[pi] < 0.6 || (result.zoneBest[pi]?.margin || 0) < 0.25 ||
+    (result.zoneBest[pi]?.coordinateMargin ?? 1) < 0.25 || (result.zoneBest[pi]?.pos || 0) < 0.35);
   if (result.digits.some(digit => digit < 0)) result.confidence = 0;
   return result;
 }
@@ -2411,6 +2478,10 @@ function analyze() {
     state.candidates = result.candidates;
     state.zoneBest = result.zoneBest;
     state.cellBest = result.cellBest;
+    if (result.alignmentReliable === false) {
+      progress.textContent = '자동 정렬을 확인할 수 없어 모든 영역의 점 위치를 검토해야 합니다.';
+      progress.style.display = 'block';
+    }
     updateResultDisplay();
     drawOverlay();
     drawSubzoneGrid();
@@ -2451,27 +2522,34 @@ async function copyResultCode() {
   const code = document.getElementById('resultCode').textContent.trim();
   if (!/^[0-7]{8}$/.test(code) || document.getElementById('copyCodeBtn').disabled) return;
   const token = revision;
+  const isCurrent = () => token === revision &&
+    document.getElementById('resultCode').textContent.trim() === code &&
+    !document.getElementById('copyCodeBtn').disabled;
 
   try {
     await navigator.clipboard.writeText(code);
   } catch {
+    if (!isCurrent()) return;
     const temp = document.createElement('textarea');
-    temp.value = code;
-    temp.setAttribute('readonly', '');
-    temp.style.position = 'fixed';
-    temp.style.opacity = '0';
-    document.body.appendChild(temp);
-    temp.select();
-    const copied = document.execCommand('copy');
-    temp.remove();
-    if (!copied) { showError(new Error('복사하지 못했습니다. 브라우저 권한을 확인하세요.')); return; }
+    try {
+      temp.value = code;
+      temp.setAttribute('readonly', '');
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.select();
+      if (!document.execCommand('copy')) throw new Error('Copy failed');
+    } catch {
+      showError(new Error('복사하지 못했습니다. 브라우저 권한을 확인하세요.'));
+      return;
+    } finally { temp.remove(); }
   }
 
   const copyBtn = document.getElementById('copyCodeBtn');
-  if (token !== revision) return;
+  if (!isCurrent()) return;
   copyBtn.textContent = '복사됨';
   setTimeout(() => {
-    copyBtn.textContent = '복사';
+    if (isCurrent()) copyBtn.textContent = '복사';
   }, 1200);
 }
 
@@ -2567,7 +2645,7 @@ document.getElementById('confirmSubzoneBtn').addEventListener('click', () => {
   const selected = state.selectedSubzone;
   if (!selected) return;
   const point = state.cellBest?.[selected.pi]?.[selected.si];
-  if (point) addManualMark(point.cx, point.cy);
+  if (point) applyManualMark(point.cx, point.cy, selected.pi, selected.si);
 });
 
 // 캔버스 클릭 → 수동 마킹

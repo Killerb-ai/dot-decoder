@@ -3,7 +3,7 @@
   "version": "6.2.0",
   "private": true,
   "scripts": {
-    "test": "node --test tests/decoder.test.cjs",
+    "test": "node --test tests/*.test.cjs",
     "test:samples": "node tests/samples.cjs",
     "test:variants": "node tests/variants.cjs",
     "test:browser": "node tests/browser.cjs",

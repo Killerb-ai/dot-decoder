@@ -1,0 +1,24 @@
+{
+  "digitProvenance": "Separately annotated codes already recorded in the QR integration regression. These labels were not generated from decoder output.",
+  "pointProvenance": "Exact output coordinates recorded from commit 4eb0263 and confirmed equal to 952897b on the same originals. These are regression fixtures, not independent accuracy labels.",
+  "samples": [
+    {
+      "id": "sample_9",
+      "file": "sample_9(출력본).jpg",
+      "digits": [2, 6, 1, 7, 4, 4, 1, 1],
+      "regressionPoints": [[786,241],[2027,679],[479,1116],[2341,1555],[175,2430],[1414,2431],[483,2870],[1724,2871]]
+    },
+    {
+      "id": "sample_11",
+      "file": "sample_11(출력본).jpg",
+      "digits": [2, 5, 3, 7, 4, 4, 1, 1],
+      "regressionPoints": [[782,238],[1710,676],[1094,1112],[2333,1552],[167,2426],[1406,2427],[479,2865],[1718,2867]]
+    },
+    {
+      "id": "sample_8",
+      "file": "sample_8(원본).jpg",
+      "digits": [2, 2, 5, 0, 2, 2, 7, 0],
+      "regressionPoints": [[778,233],[2018,234],[476,1545],[1401,1108],[782,1984],[2022,1986],[1097,3301],[1406,2863]]
+    }
+  ]
+}
