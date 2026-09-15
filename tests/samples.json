@@ -24,8 +24,8 @@
     "digits": [3, 5, 2, null, 1, 2, 7, 0],
     "points": [[1090,247],[1708,684],[780,1122],null,[478,1997],[2024,1997],[1100,3313],[1410,2876]],
     "tolerance": 8,
-    "minimumLocated": 5,
-    "note": "P3 has no unambiguous answer annotation. P2/P7 are unresolved text-overlap cases, not passing labels."
+    "minimumLocated": 6,
+    "note": "P3 has no unambiguous answer annotation. P2 was recovered under review in the synthetic-validation upgrade; P7 remains an unresolved text-overlap failure. Original annotated digits and coordinates are unchanged."
   },
   {
     "id": "sample_8",

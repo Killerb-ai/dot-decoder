@@ -7,7 +7,8 @@
     "test:samples": "node tests/samples.cjs",
     "test:variants": "node tests/variants.cjs",
     "test:browser": "node tests/browser.cjs",
-    "test:qr": "node tests/qr.cjs"
+    "test:qr": "node tests/qr.cjs",
+    "test:synthetic": "node tests/self-validate.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1",

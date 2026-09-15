@@ -1303,7 +1303,7 @@ function analyzeGridConsensus(imageData, region, candidates, sharedGray) {
     if (Math.hypot(nx - u, ny - v) > 0.48) continue;
     const local = sampleLocalStats(gray, imageData.width, imageData.height, c.cx, c.cy, Math.round(12 * scale), 215);
     const contrast = local.mean - c.meanGray;
-    if (contrast < 18 || local.darkRatio > 0.24) continue;
+    if (contrast < 12 || local.darkRatio > 0.24) continue;
     const quality = (1 - Math.exp(-contrast / 55)) * Math.sqrt(c.circularity)
       / (1 + local.darkRatio * 8) / (1 + c.area / (12 * scale * scale));
     const pi = Math.floor(row / 2) * 2 + Math.floor(col / 4);
@@ -1356,10 +1356,12 @@ function analyzeGridConsensus(imageData, region, candidates, sharedGray) {
   best.ambiguous = best.matches.map((point, pi) => competitors.some(fit =>
     point && fit.matches[pi] && fit.matches[pi].si !== point.si) ||
     pool.some(p => {
-      if (!point || p.pi !== pi || p.si === point.si) return false;
+      if (!point || p.pi !== pi || (p.si === point.si && Math.hypot(p.cx - point.cx, p.cy - point.cy) <= 3)) return false;
       const dx = (p.nx - (best.model.x[0] * p.u + best.model.x[1] * p.v + best.model.x[2])) / tx;
       const dy = (p.ny - (best.model.y[0] * p.u + best.model.y[1] * p.v + best.model.y[2])) / ty;
-      return dx * dx + dy * dy <= 1 && p.quality * Math.exp(-(dx * dx + dy * dy) / 2) >= point.merit * 0.8;
+      // Valid dot size/contrast can vary by more than the old 20% margin.
+      // A second real point at a lattice position remains a competing reading.
+      return dx * dx + dy * dy <= 1 && p.quality * Math.exp(-(dx * dx + dy * dy) / 2) >= point.merit * 0.5;
     }));
   best.cells = cells;
   return best;
@@ -1435,19 +1437,33 @@ function applyGridConsensus(result, grid, region) {
       result.cellBest[pi][si] = best;
       return best?.score || 0;
     });
-    const point = grid.matches[pi];
+    let point = grid.matches[pi];
+    let recovered = false;
+    // A small per-dot displacement can fall just outside the common affine fit.
+    // Recover only one actual nearby component on an otherwise unambiguous grid.
+    // Keep it under review; never synthesize a point at the predicted location.
+    if (!point && !grid.ambiguous.some(Boolean)) {
+      const nearby = grid.cells.slice(pi * 8, pi * 8 + 8).flat().flatMap(p => {
+        const dx = (p.nx - (grid.model.x[0] * p.u + grid.model.x[1] * p.v + grid.model.x[2])) / tx;
+        const dy = (p.ny - (grid.model.y[0] * p.u + grid.model.y[1] * p.v + grid.model.y[2])) / ty;
+        const residual = Math.hypot(dx, dy);
+        return residual <= 2.5 ? [{ ...p, residual, merit: p.quality * Math.exp(-residual * residual / 2) }] : [];
+      });
+      if (nearby.length === 1) { point = nearby[0]; recovered = true; }
+    }
     result.digits[pi] = point?.si ?? -1;
-    result.zoneBest[pi] = point ? { ...point, score: point.merit * 1000, source: 'grid' } : null;
+    result.zoneBest[pi] = point ? { ...point, score: point.merit * 1000, source: recovered ? 'grid-nearby' : 'grid' } : null;
     if (point) {
       // Inspection and confirmation must use the exact point accepted by the lattice.
       result.cellBest[pi][point.si] = result.zoneBest[pi];
       result.scores[pi][point.si] = result.zoneBest[pi].score;
     }
-    result.sources[pi] = point ? 'grid' : 'missing';
+    result.sources[pi] = point ? result.zoneBest[pi].source : 'missing';
     result.certainties[pi] = point
       ? (1 - Math.exp(-point.contrast / 35)) * Math.exp(-point.residual * point.residual / 2)
         * (grid.count / 8) * (grid.ambiguous[pi] ? 0.35 : 1)
       : 0;
+    if (recovered) result.certainties[pi] = Math.min(0.35, result.certainties[pi]);
   }
   result.gridSupport = grid.count;
   result.gridAmbiguous = grid.ambiguous;
@@ -1467,10 +1483,13 @@ function analyzeAnomaly(imageData, region, darkThresh = 100, bgPct = 88) {
   const selected = combineAnalysisPasses(base, faint, ultra, lineBound);
   // A dot may merge into a nearby stroke at a higher threshold; keep the intermediate component too.
   selected.candidates = selected.candidates.concat(findCompactDarkCandidates(gray, imageData.width, imageData.height, 215, 1, 30));
+  // Very faint components can support a common grid, but do not get an
+  // independent per-zone pass that could promote isolated paper noise.
+  selected.candidates = selected.candidates.concat(findCompactDarkCandidates(gray, imageData.width, imageData.height, 244, 1, 8));
   const grid = analyzeGridConsensus(imageData, region, selected.candidates, gray);
   applyGridConsensus(selected, grid, region);
   selected.review = selected.digits.map((digit, pi) =>
-    digit < 0 || selected.certainties[pi] < 0.6 || Boolean(selected.gridAmbiguous?.[pi]));
+    digit < 0 || !grid || grid.count < 8 || selected.certainties[pi] < 0.6 || Boolean(selected.gridAmbiguous?.[pi]));
   selected.confidence = calcEnsembleConfidence(selected);
   selected.mode = grid ? '격자 검증' : '개별 후보';
   return selected;
