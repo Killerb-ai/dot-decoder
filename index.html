@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>점은닉 디코더 — 문건 식별코드 분석기</title>
+  <title>점은닉 디코더 v6.3 — 문건 식별코드 분석기</title>
   <style>
     :root {
       --bg: #17191c;
@@ -52,7 +52,12 @@
       padding: 4px 12px;
       font-size: 11px;
       color: var(--muted);
+      white-space: nowrap;
     }
+    .release-note { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-size: 12px; line-height: 1.6; }
+    .release-note summary { cursor: pointer; font-weight: 600; }
+    .release-note p { margin-top: 8px; color: var(--muted); }
+    .release-note a { color: var(--accent); }
 
     /* Layout */
     .main { display: flex; height: calc(100vh - 65px); overflow: hidden; }
@@ -450,13 +455,21 @@
   <div>
     <div class="header-title">점은닉 디코더</div>
   </div>
-  <div class="header-badge">v6.2</div>
+  <div class="header-badge">v6.3</div>
 </div>
 
 <!-- ======================== DECODER TAB ======================== -->
 <div id="decoderTab" class="main">
   <!-- Left panel -->
   <div class="panel-left">
+
+    <details class="release-note">
+      <summary>v6.3 변경 내용 · 예제로 확인</summary>
+      <p>미세점 격자 분석에서 매우 흐린 점과 조금 벗어난 점의 복구를 개선했습니다. 불확실한 후보는 검토 표시를 유지합니다.</p>
+      <p>QR 정렬 경로의 판독 결과는 기존과 같을 수 있습니다.</p>
+      <p><a href="examples/faint-dots.png" download="dot-decoder-faint-example.png">흐린 점 예제 다운로드</a><br>업로드 후 분석하면 <strong>50603617</strong>이 나옵니다. 이전 버전에서는 <strong>??6????7</strong>로 읽혔습니다.</p>
+      <p><a href="https://github.com/Killerb-ai/dot-decoder/blob/main/SELF_VALIDATION.md" target="_blank" rel="noopener noreferrer">검증 결과와 한계 보기</a></p>
+    </details>
 
     <div class="section">
       <div class="section-title">이미지 업로드</div>
